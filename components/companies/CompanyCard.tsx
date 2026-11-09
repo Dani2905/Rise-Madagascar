@@ -1,0 +1,67 @@
+import React from 'react';
+import { ArrowRight, MapPin, Globe } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Company } from '../../data/companiesData';
+
+interface CompanyCardProps {
+  company: Company;
+}
+
+const CompanyCard: React.FC<CompanyCardProps> = ({ company }) => {
+  const navigate = useNavigate();
+
+  return (
+    <div className="bg-white rounded-2xl p-6 border border-gray-100 hover:border-primary/40 hover:shadow-lg transition-all duration-300 group">
+        <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+            {/* Logo */}
+            <div 
+                className="w-16 h-16 md:w-20 md:h-20 flex-shrink-0 rounded-xl border border-gray-100 p-1 bg-white shadow-sm overflow-hidden group-hover:scale-105 transition-transform cursor-pointer"
+                onClick={() => navigate(`/companies/${company.id}`)}
+            >
+                <img src={company.logoUrl} alt={company.name} className="w-full h-full object-cover rounded-lg" />
+            </div>
+            {/* Content */}
+            <div className="flex-grow min-w-0">
+                <div className="flex flex-wrap items-center gap-3 mb-1">
+                    <h3 
+                        className="text-xl font-heading font-bold text-slate-900 group-hover:text-primary transition-colors cursor-pointer"
+                        onClick={() => navigate(`/companies/${company.id}`)}
+                    >
+                        {company.name}
+                    </h3>
+                    <span className="inline-block px-2.5 py-0.5 bg-slate-50 text-slate-600 rounded-full text-xs font-bold uppercase tracking-wide">
+                        {company.sector}
+                    </span>
+                </div>
+                <p className="text-gray-600 text-sm leading-relaxed mb-3 line-clamp-2">
+                    {company.description}
+                </p>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center">
+                        <MapPin size={14} className="mr-1.5 text-primary" />
+                        {company.location}
+                    </div>
+                    <div className="hidden sm:flex items-center">
+                        <Globe size={14} className="mr-1.5 text-primary" />
+                        <a href={`https://${company.website}`} target="_blank" rel="noreferrer" className="hover:text-slate-900 hover:underline">
+                            {company.website}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {/* Action */}
+            <div className="w-full md:w-auto flex-shrink-0 mt-4 md:mt-0">
+                <Link 
+                    to={`/companies/${company.id}`}
+                    className="w-full md:w-auto px-6 py-3 rounded-xl bg-slate-50 text-slate-900 font-bold hover:bg-slate-900 hover:text-white transition-all flex items-center justify-center gap-2 group/btn whitespace-nowrap"
+                >
+                    Voir les {company.jobs} offres
+                    <ArrowRight size={16} className="transform group-hover/btn:translate-x-1 transition-transform" />
+                </Link>
+            </div>
+        </div>
+    </div>
+  );
+};
+
+export default CompanyCard;

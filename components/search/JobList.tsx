@@ -1,0 +1,100 @@
+import React, { useState } from 'react';
+import { Briefcase, ArrowDownUp, RefreshCcw, Sparkles, FilterX } from 'lucide-react';
+import JobCard from '../JobCard';
+import { Job } from '../../types';
+
+interface JobListProps {
+  jobs: Job[];
+  onReset: () => void;
+}
+
+export const JobList: React.FC<JobListProps> = ({ jobs, onReset }) => {
+  const [sortBy, setSortBy] = useState<'recent' | 'salary'>('recent');
+
+  const sortedJobs = [...jobs].sort((a, b) => {
+    if (sortBy === 'salary') {
+      const salA = a.salary ? parseInt(a.salary.replace(/[^0-9]/g, '')) || 0 : 0;
+      const salB = b.salary ? parseInt(b.salary.replace(/[^0-9]/g, '')) || 0 : 0;
+      return salB - salA; // Descending
+    }
+    // Default by recent (or preserve order)
+    return 0;
+  });
+
+  return (
+    <main className="flex-1 min-w-0">
+      
+      {/* Top Bar Info & Sorting Options */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <p className="text-slate-500 font-semibold text-sm">
+          Nous avons trouvé <span className="font-extrabold text-slate-900 bg-primary/20 p-1 px-2 rounded-lg">{jobs.length}</span> opportunités correspondantes
+        </p>
+        
+        <div className="flex items-center gap-3 w-full sm:w-auto self-stretch sm:self-auto justify-end">
+          <span className="text-xs text-slate-400 font-bold uppercase tracking-wider hidden sm:inline">Trier par :</span>
+          <div className="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
+            <button 
+              onClick={() => setSortBy('recent')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                sortBy === 'recent' 
+                  ? 'bg-white text-slate-900 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Pertinence
+            </button>
+            <button 
+              onClick={() => setSortBy('salary')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                sortBy === 'salary' 
+                  ? 'bg-white text-slate-900 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Salaire <ArrowDownUp size={12} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Results Grid */}
+      {sortedJobs.length > 0 ? (
+        <div className="flex flex-col gap-4 animate-fade-in">
+          {sortedJobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-[32px] p-12 text-center shadow-sm border border-slate-100 animate-fade-in flex flex-col items-center max-w-2xl mx-auto">
+          <div className="w-24 h-24 bg-rose-50 rounded-full flex items-center justify-center mb-6 border border-rose-100 shadow-inner">
+            <FilterX className="text-rose-500" size={38} />
+          </div>
+          <h3 className="text-2xl font-heading font-black text-slate-900 mb-3 tracking-tight">Aucun résultat trouvé</h3>
+          <p className="text-slate-500 mb-8 leading-relaxed text-sm max-w-md">
+            Il n'y a pas d'offres ou de missions actives correspondant exactement à vos critères de recherche pour le moment. Essayez d'élargir votre sélection ou réinitialisez les filtres.
+          </p>
+          <button 
+            onClick={onReset}
+            className="px-8 py-3.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 flex items-center gap-2"
+          >
+            <RefreshCcw size={16} />
+            Réinitialiser tous les filtres
+          </button>
+        </div>
+      )}
+      
+      {/* Premium Visual Footer Hint / Pagination */}
+      {sortedJobs.length > 0 && (
+        <div className="mt-14 text-center border-t border-slate-200/50 pt-10">
+          <p className="text-xs text-slate-400 font-bold mb-4">Vous êtes arrivés à la fin du catalogue disponible.</p>
+          <button 
+            type="button"
+            className="px-8 py-4 bg-slate-900 text-white hover:bg-slate-800 text-xs font-black rounded-2xl transition-all shadow-md shadow-slate-955/10 hover:-translate-y-0.5 active:translate-y-0 uppercase tracking-widest"
+          >
+            Charger plus d'opportunités
+          </button>
+        </div>
+      )}
+    </main>
+  );
+};
