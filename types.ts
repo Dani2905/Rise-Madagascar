@@ -4,10 +4,13 @@ export interface Job {
   title: string;
   company: string;
   location: string;
+  province?: string;
   type: 'Stage' | 'Alternance' | 'CDD' | 'Job étudiant' | 'Mission' | 'Freelance' | 'CDI';
   tags: string[];
   description: string;
   postedAt: string;
+  createdAt?: string;
+  isDemo?: boolean;
   logoUrl: string;
   salary?: string;
   isUrgent?: boolean;
@@ -63,7 +66,7 @@ export interface Review {
 
 export interface ProjectSupport {
   id: string;
-  projectId: number;
+  projectId: number | string;
   projectTitle: string;
   supporterId: string | number;
   supporterName: string;

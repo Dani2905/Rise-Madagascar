@@ -49,6 +49,7 @@ export const RegisterFormFields: React.FC<RegisterFormFieldsProps> = ({ accountT
       <FloatingInput
         id="email"
         type="email"
+        autoComplete="email" maxLength={254}
         label={accountType === 'student' ? "Email universitaire" : "Email de contact"}
         value={formData.email}
         onChange={onChange}

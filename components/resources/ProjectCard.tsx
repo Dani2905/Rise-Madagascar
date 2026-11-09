@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Rocket, UserPlus, Heart, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { useProjectLikes } from '../../hooks/useProjectLikes';
 import { Project } from '../../data/resourcesData';
 
 interface ProjectCardProps {
@@ -8,58 +9,9 @@ interface ProjectCardProps {
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
-  const [likes, setLikes] = useState(project.likes);
-  const [isLiked, setIsLiked] = useState(false);
-  const [animateHeart, setAnimateHeart] = useState(false);
-
-  useEffect(() => {
-    // 1. Vérifier si l'utilisateur a déjà liké ce projet
-    const userLikes = JSON.parse(localStorage.getItem('rise_user_likes') || '[]');
-    if (userLikes.includes(project.id)) {
-        setIsLiked(true);
-    }
-
-    // 2. Récupérer le nombre de likes à jour (si stocké localement)
-    const storedCounts = JSON.parse(localStorage.getItem('rise_project_likes_counts') || '{}');
-    if (storedCounts[project.id]) {
-        setLikes(storedCounts[project.id]);
-    }
-  }, [project.id]);
-
-  const handleLike = (e: React.MouseEvent) => {
-      e.preventDefault(); // Empêcher la navigation si cliqué dans un lien
-      e.stopPropagation();
-
-      const newIsLiked = !isLiked;
-      const newLikes = newIsLiked ? likes + 1 : likes - 1;
-
-      setIsLiked(newIsLiked);
-      setLikes(newLikes);
-      setAnimateHeart(true);
-      setTimeout(() => setAnimateHeart(false), 300);
-
-      // Mise à jour du localStorage (User Likes)
-      const userLikes = JSON.parse(localStorage.getItem('rise_user_likes') || '[]');
-      let updatedUserLikes;
-      if (newIsLiked) {
-          updatedUserLikes = [...userLikes, project.id];
-          window.Toastify({
-            text: "Vous aimez ce projet !",
-            duration: 2000,
-            style: { background: "#ef4444", boxShadow: "none" },
-            position: "center",
-            gravity: "bottom"
-          }).showToast();
-      } else {
-          updatedUserLikes = userLikes.filter((id: number) => id !== project.id);
-      }
-      localStorage.setItem('rise_user_likes', JSON.stringify(updatedUserLikes));
-
-      // Mise à jour du localStorage (Global Counts)
-      const storedCounts = JSON.parse(localStorage.getItem('rise_project_likes_counts') || '{}');
-      storedCounts[project.id] = newLikes;
-      localStorage.setItem('rise_project_likes_counts', JSON.stringify(storedCounts));
-  };
+  const { liked: isLiked, count: likes, toggle } = useProjectLikes(project.id, project.likes);
+  const location = useLocation();
+  const fromResources = `${location.pathname}${location.search}`;
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 group overflow-hidden h-full flex flex-col relative">
@@ -74,6 +26,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
                             <h3 className="text-xl font-heading font-bold text-slate-900 group-hover:text-yellow-600 transition-colors line-clamp-1">
                                 {project.title}
                             </h3>
+                            {project.isDemo && <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 uppercase">Exemple de démonstration</span>}
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase whitespace-nowrap">
                                 {project.category}
                             </span>
@@ -86,7 +39,8 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
                 
                 <div className="flex flex-col items-end gap-2 shrink-0">
                     <button 
-                        onClick={handleLike}
+                        type="button" aria-pressed={isLiked} aria-label={isLiked ? 'Retirer ma réaction' : 'Aimer ce projet'}
+                        onClick={toggle}
                         className={`p-2 rounded-full transition-all flex items-center gap-1 border ${
                             isLiked 
                             ? 'text-red-500 bg-red-50 border-red-100' 
@@ -98,7 +52,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
                         </span>
                         <Heart 
                             size={20} 
-                            className={`transition-transform duration-300 ${isLiked ? 'fill-current' : ''} ${animateHeart ? 'scale-125' : 'scale-100'}`} 
+                            className={`transition-transform duration-300 ${isLiked ? 'fill-current' : ''}`} 
                         />
                     </button>
                 </div>
@@ -134,7 +88,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project }) => {
                     }`}>
                         Besoin : {project.need}
                     </span>
-                    <Link to={`/projects/${project.id}`} className="text-xs font-bold text-slate-900 hover:text-yellow-600 transition-colors flex items-center">
+                    <Link to={`/projects/${encodeURIComponent(String(project.id))}`} state={{ fromResources }} className="text-xs font-bold text-slate-900 hover:text-yellow-600 transition-colors flex items-center">
                         Voir <ChevronRight size={14} />
                     </Link>
                 </div>

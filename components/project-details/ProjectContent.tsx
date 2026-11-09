@@ -10,22 +10,6 @@ const ProjectContent: React.FC<ProjectContentProps> = ({ project }) => {
   return (
     <div className="space-y-8 animate-fade-in delay-100">
         
-        {/* Navigation Tabs (Fake for now) */}
-        <div className="flex border-b border-gray-200 overflow-x-auto scrollbar-hide">
-            <button className="px-6 py-4 text-sm font-bold text-slate-900 border-b-2 border-primary whitespace-nowrap">
-                Le Pitch
-            </button>
-            <button className="px-6 py-4 text-sm font-medium text-gray-500 hover:text-slate-900 whitespace-nowrap">
-                Prototype & Démo
-            </button>
-            <button className="px-6 py-4 text-sm font-medium text-gray-500 hover:text-slate-900 whitespace-nowrap">
-                Mises à jour (2)
-            </button>
-            <button className="px-6 py-4 text-sm font-medium text-gray-500 hover:text-slate-900 whitespace-nowrap">
-                Commentaires
-            </button>
-        </div>
-
         {/* The Problem */}
         <section className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
             <h3 className="text-xl font-heading font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -46,17 +30,11 @@ const ProjectContent: React.FC<ProjectContentProps> = ({ project }) => {
                 {project.solution || project.description}
             </p>
             
-            {/* Gallery Placeholder */}
-            <div className="mt-8 bg-slate-100 rounded-2xl h-64 w-full flex items-center justify-center relative overflow-hidden group cursor-pointer border-2 border-dashed border-gray-300">
-                <div className="text-center">
-                    <p className="font-bold text-gray-400">Galerie / Vidéo de démo</p>
-                    <p className="text-xs text-gray-400">(Bientôt disponible)</p>
-                </div>
-            </div>
+
         </section>
 
         {/* Roadmap */}
-        {project.roadmap && (
+        {project.roadmap && project.roadmap.length > 0 && (
             <section className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
                 <h3 className="text-xl font-heading font-bold text-slate-900 mb-6 flex items-center gap-2">
                     <TrendingUp className="text-green-500" /> Roadmap

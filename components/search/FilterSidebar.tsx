@@ -1,3 +1,4 @@
+import { PROVINCES } from '../../utils/provinces';
 import React, { useState } from 'react';
 import { SlidersHorizontal, ChevronUp, ChevronDown, Briefcase, MapPin, RefreshCw, Globe, Sparkles } from 'lucide-react';
 
@@ -31,6 +32,8 @@ const FilterSection = ({
 }) => (
   <div className="py-5 border-b border-slate-100 last:border-0">
     <button 
+      type="button"
+      aria-expanded={isOpen}
       onClick={onToggle}
       className="flex items-center justify-between w-full text-left mb-4 group"
     >
@@ -42,9 +45,7 @@ const FilterSection = ({
       </div>
       {isOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
     </button>
-    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-      {children}
-    </div>
+    {isOpen && <div>{children}</div>}
   </div>
 );
 
@@ -119,6 +120,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   </div>
                   <button
                     type="button"
+                    role="switch" aria-label="Télétravail à 100 %" aria-checked={filters.remote}
                     onClick={() => toggleBooleanFilter?.('remote')}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                       filters.remote ? 'bg-primary' : 'bg-slate-200'
@@ -145,6 +147,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                   </div>
                   <button
                     type="button"
+                    role="switch" aria-label="Offres urgentes" aria-checked={filters.urgent}
                     onClick={() => toggleBooleanFilter?.('urgent')}
                     className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                       filters.urgent ? 'bg-red-500' : 'bg-slate-200'
@@ -174,6 +177,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
                     <button
                       key={type}
                       type="button"
+                      aria-pressed={isSelected}
                       onClick={() => handleCheckboxChange('types', type)}
                       className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 ${
                         isSelected 
@@ -190,18 +194,19 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
 
             {/* Location - Icon List */}
             <FilterSection 
-              title="Localisation" 
+              title="Province" 
               icon={MapPin}
               isOpen={openSections.location} 
               onToggle={() => toggleSection('location')}
             >
               <div className="space-y-1 pt-1">
-                {['Antananarivo', 'Toamasina', 'Antsirabe', 'Fianarantsoa', 'Mahajanga', 'Toliara'].map(city => {
+                {PROVINCES.map(city => {
                   const isSelected = filters.locations.includes(city);
                   return (
                     <button
                       key={city}
                       type="button"
+                      aria-pressed={isSelected}
                       onClick={() => handleCheckboxChange('locations', city)}
                       className={`flex items-center justify-between w-full p-2.5 rounded-xl cursor-pointer transition-all border text-left ${
                         isSelected 

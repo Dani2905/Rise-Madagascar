@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Save, Loader2, Briefcase, Zap, User } from 'lucide-react';
 import { FloatingInput, FloatingTextArea } from '../../FloatingInput';
 import { useAuth } from '../../../context/AuthContext';
+import { useSubscription } from '../../../context/SubscriptionContext';
+import { canPerformAction } from '../../../utils/subscription';
+import { PROVINCES, inferProvince } from '../../../utils/provinces';
 
-import { useNavigate } from 'react-router-dom';
 
 interface CompanyPostJobTabProps {
   onSave: (jobData: any) => void;
@@ -13,14 +15,17 @@ interface CompanyPostJobTabProps {
 
 const CompanyPostJobTab: React.FC<CompanyPostJobTabProps> = ({ onSave, onCancel, initialData }) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const { openSubscription } = useSubscription();
   const isIndividual = user?.role === 'individual';
 
   const [formData, setFormData] = useState({
     title: '',
     type: isIndividual ? 'Job étudiant' : '',
     location: user?.location || 'Antananarivo',
+    province: user?.location ? inferProvince(user.location) || '' : '',
     salary: '',
+    remote: false,
+    isUrgent: false,
     duration: '',
     description: '',
     experienceLevel: '',
@@ -39,7 +44,10 @@ const CompanyPostJobTab: React.FC<CompanyPostJobTabProps> = ({ onSave, onCancel,
             title: initialData.title || '',
             type: initialData.type || (isIndividual ? 'Job étudiant' : 'Stage'),
             location: initialData.location || user?.location || 'Antananarivo',
+            province: initialData.province || inferProvince(initialData.location || '') || '',
             salary: initialData.salary || '',
+            remote: initialData.remote === true,
+            isUrgent: initialData.isUrgent === true,
             duration: initialData.duration || '',
             description: initialData.description || '',
             experienceLevel: initialData.experienceLevel || '',
@@ -54,7 +62,10 @@ const CompanyPostJobTab: React.FC<CompanyPostJobTabProps> = ({ onSave, onCancel,
             title: '',
             type: isIndividual ? 'Job étudiant' : '',
             location: user?.location || 'Antananarivo',
+            province: user?.location ? inferProvince(user.location) || '' : '',
             salary: '',
+            remote: false,
+            isUrgent: false,
             duration: '',
             description: '',
             experienceLevel: '',
@@ -65,7 +76,7 @@ const CompanyPostJobTab: React.FC<CompanyPostJobTabProps> = ({ onSave, onCancel,
             posted: 'À l\'instant'
         });
     }
-  }, [initialData, user, isIndividual]);
+  }, [initialData, user?.location, isIndividual]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { id, value } = e.target;
@@ -76,14 +87,15 @@ const CompanyPostJobTab: React.FC<CompanyPostJobTabProps> = ({ onSave, onCancel,
     e.preventDefault();
     if (!user) return;
 
-    if (!user.hasSubscription) {
+    if (user.role !== 'company' && user.role !== 'individual') return;
+    if (!canPerformAction(user, 'publishOffer')) {
         if (window.Toastify) {
             window.Toastify({
-                text: "Un abonnement est requis pour publier une annonce.",
+                text: `Un abonnement ${user.role === 'company' ? 'entreprise' : 'particulier'} actif est nécessaire pour publier une annonce.`,
                 style: { background: "#ef4444" }
             }).showToast();
         }
-        navigate('/pricing');
+        openSubscription();
         return;
     }
 
@@ -101,16 +113,14 @@ const CompanyPostJobTab: React.FC<CompanyPostJobTabProps> = ({ onSave, onCancel,
         logoUrl: user.logoUrl || user.avatarUrl, 
         
         // Métadonnées par défaut
-        isUrgent: isIndividual, // Les particuliers ont souvent des besoins urgents
-        remote: formData.location.toLowerCase().includes('remote'),
+        isUrgent: formData.isUrgent,
+        remote: formData.remote,
         tags: [formData.type, isIndividual ? "Particulier" : "Entreprise"],
-        postedAt: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+        postedAt: initialData?.postedAt || new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
     };
 
-    setTimeout(() => {
-      onSave(jobPayload);
-      setIsSaving(false);
-    }, 1000);
+    onSave(jobPayload);
+    setIsSaving(false);
   };
 
   return (
@@ -189,6 +199,27 @@ const CompanyPostJobTab: React.FC<CompanyPostJobTabProps> = ({ onSave, onCancel,
                         onChange={handleChange} 
                         required 
                     />
+                </div>
+
+                <div className="relative">
+                    <select
+                        id="province"
+                        value={formData.province}
+                        onChange={handleChange}
+                        required
+                        className="block px-4 pb-2.5 pt-5 w-full text-sm text-gray-900 bg-transparent rounded-2xl focus:outline-none focus:border-slate-900 border border-gray-200 h-[60px]"
+                    >
+                        <option value="" disabled>Choisir une province</option>
+                        {PROVINCES.map(province => <option key={province} value={province}>{province}</option>)}
+                    </select>
+                    <label htmlFor="province" className="absolute text-[11px] font-bold text-gray-400 uppercase tracking-widest -translate-y-3 scale-75 top-3 origin-[0] bg-white px-2 left-3">
+                        Province de l'offre
+                    </label>
+                </div>
+
+                <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-slate-700">
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={formData.remote} onChange={e => setFormData(prev => ({ ...prev, remote: e.target.checked }))} /> 100 % en télétravail</label>
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={formData.isUrgent} onChange={e => setFormData(prev => ({ ...prev, isUrgent: e.target.checked }))} /> Offre urgente</label>
                 </div>
 
                 <FloatingInput 

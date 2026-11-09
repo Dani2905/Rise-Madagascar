@@ -10,15 +10,23 @@ const FeaturedSection: React.FC = () => {
   const [featuredJobs, setFeaturedJobs] = useState<Job[]>([]);
 
   useEffect(() => {
-      // 1. Récupérer les jobs dynamiques (localStorage)
-      const customJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-      
-      // 2. Fusionner avec les mocks
-      // On met les customJobs en premier car ce sont les plus récents "utilisateur"
-      const allJobs = [...customJobs, ...MOCK_JOBS];
+    let customJobs: Job[] = [];
+    try {
+      const storedJobs = localStorage.getItem('rise_jobs');
+      const parsed = storedJobs ? JSON.parse(storedJobs) : [];
+      customJobs = Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error("Erreur lecture offres", error);
+      customJobs = [];
+    }
 
-      // 3. Garder les 3 premiers (ou 6 selon design)
-      setFeaturedJobs(allJobs.slice(0, 3));
+    // Garder uniquement les offres actives et éviter les doublons d'ID
+    const activeCustomJobs = customJobs.filter((j: any) => j && (!j.status || j.status === 'Actif'));
+    const seenIds = new Set(activeCustomJobs.map(j => j.id?.toString()));
+    const remainingMocks = MOCK_JOBS.filter(m => !seenIds.has(m.id.toString()));
+
+    const allJobs = [...activeCustomJobs, ...remainingMocks];
+    setFeaturedJobs(allJobs.slice(0, 3));
   }, []);
 
   return (
@@ -39,7 +47,7 @@ const FeaturedSection: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {featuredJobs.length > 0 ? (
                   featuredJobs.map((job) => (
-                      <JobCard key={job.id} job={job} />
+                      <JobCard key={job.id} job={job} layout="grid" />
                   ))
               ) : (
                   <p>Chargement des offres...</p>

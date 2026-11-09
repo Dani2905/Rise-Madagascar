@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ResourcesHero from '../components/resources/ResourcesHero';
 import ProcessSteps from '../components/resources/ProcessSteps';
 import ProjectsFeed from '../components/resources/ProjectsFeed';
@@ -7,17 +8,18 @@ import GuidesTab from '../components/resources/GuidesTab';
 import FaqSection from '../components/resources/FaqSection';
 
 const Resources: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'projects' | 'guides'>('projects');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [filterCategory, setFilterCategory] = useState('Tous');
+  const [params, setParams] = useSearchParams();
+  const activeTab = params.get('tab') === 'guides' ? 'guides' : 'projects';
+  const filterCategory = params.get('category') || 'Tous';
+  const setParam = (key: string, value: string) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value); else next.delete(key);
+    setParams(next);
+  };
+  const setActiveTab = (tab: 'projects' | 'guides') => setParam('tab', tab === 'guides' ? 'guides' : '');
+  const setFilterCategory = (category: string) => setParam('category', category === 'Tous' ? '' : category);
 
-  useEffect(() => {
-    // Vérification basique de "session" via localStorage
-    const userData = localStorage.getItem('rise_user_data');
-    if (userData) {
-      setIsLoggedIn(true);
-    }
-  }, []);
+
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -41,7 +43,7 @@ const Resources: React.FC = () => {
                 />
 
                 {/* Right Col: Submission Form */}
-                <ProjectSubmissionForm isLoggedIn={isLoggedIn} />
+                <ProjectSubmissionForm />
              </div>
           )}
 

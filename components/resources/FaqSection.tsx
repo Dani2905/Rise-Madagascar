@@ -9,13 +9,14 @@ const FaqSection: React.FC = () => {
     <div className="mt-20 pt-12 border-t border-gray-200">
         <div className="text-center mb-10">
             <h3 className="text-2xl font-heading font-bold text-slate-900 mb-2">Questions Fréquentes</h3>
-            <p className="text-gray-500">Tout ce que vous devez savoir sur l'incubateur Rise.</p>
+            <p className="text-gray-500">Questions sur les projets étudiants sur Rise.</p>
         </div>
         
         <div className="max-w-3xl mx-auto space-y-4">
             {FAQ_ITEMS.map((item, idx) => (
                 <div key={idx} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                     <button 
+                        type="button" aria-expanded={openFaq === idx}
                         onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
                         className="w-full flex justify-between items-center p-5 text-left font-bold text-slate-900 hover:bg-gray-50 transition-colors"
                     >

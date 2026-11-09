@@ -3,6 +3,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LayoutDashboard, Megaphone, Users, Settings, LogOut, Plus, Search, MoreVertical, Filter, Download, Edit, Trash2, Eye, MessageSquare, ArrowLeft, X, CheckCircle, XCircle, ClipboardList, Clock, HelpCircle, Star, Medal, TrendingUp, Lightbulb, ExternalLink, Camera } from 'lucide-react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { canPerformAction } from '../../utils/subscription';
 import { useMessaging } from '../../context/MessagingContext';
 import CompanyPostJobTab from './company/CompanyPostJobTab';
 import IndividualSettings from './IndividualSettings';
@@ -14,6 +16,7 @@ const IndividualDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { logout, user, updateUser } = useAuth();
+  const { openSubscription } = useSubscription();
   const { sendMessage } = useMessaging();
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'ads' | 'candidates' | 'mentoring' | 'supports' | 'settings' | 'post-job'>('dashboard');
@@ -83,6 +86,13 @@ const IndividualDashboard: React.FC = () => {
   };
 
   const handleSaveAd = (adData: any) => {
+      // Contrôle au moment de l'enregistrement, même en cas d'expiration pendant la saisie.
+      if (!canPerformAction(user, 'publishOffer')) {
+          if (window.Toastify) window.Toastify({ text: 'Un abonnement actif est nécessaire pour publier cette annonce.', style: { background: '#ef4444' } }).showToast();
+          openSubscription();
+          return;
+      }
+
       const allJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
       const userName = `${user?.firstName} ${user?.lastName}`;
 
@@ -96,6 +106,7 @@ const IndividualDashboard: React.FC = () => {
           const newAd = {
               id: Date.now().toString(),
               ...adData,
+              createdAt: new Date().toISOString(),
               company: userName,
               ownerId: user?.id,
               logoUrl: user?.avatarUrl,

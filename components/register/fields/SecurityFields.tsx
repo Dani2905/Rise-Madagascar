@@ -9,10 +9,11 @@ interface SecurityFieldsProps {
 
 const SecurityFields: React.FC<SecurityFieldsProps> = ({ formData, onChange }) => {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1"><p className="text-xs text-slate-500 mb-3">8 caractères minimum. Utilisez un mot de passe réservé à cette démonstration.</p>
         <FloatingInput
             id="password"
             type="password"
+            autoComplete="new-password" minLength={8} maxLength={1024}
             label="Mot de passe"
             value={formData.password}
             onChange={onChange}
@@ -21,6 +22,7 @@ const SecurityFields: React.FC<SecurityFieldsProps> = ({ formData, onChange }) =
         <FloatingInput
             id="confirmPassword"
             type="password"
+            autoComplete="new-password" minLength={8} maxLength={1024}
             label="Confirmer le mot de passe"
             value={formData.confirmPassword}
             onChange={onChange}

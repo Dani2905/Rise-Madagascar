@@ -1,4 +1,5 @@
-import React from 'react';
+import { PROVINCES } from '../../utils/provinces';
+import React, { useEffect, useRef } from 'react';
 import { X, Briefcase, MapPin, Globe, Sparkles } from 'lucide-react';
 import { SearchFiltersState } from './FilterSidebar';
 
@@ -8,6 +9,7 @@ interface MobileFilterDrawerProps {
   filters: SearchFiltersState;
   handleCheckboxChange: (category: keyof SearchFiltersState, value: string) => void;
   toggleBooleanFilter?: (category: 'remote' | 'urgent') => void;
+  resetFilters: () => void;
 }
 
 export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({ 
@@ -15,8 +17,28 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
   onClose, 
   filters, 
   handleCheckboxChange,
-  toggleBooleanFilter
+  toggleBooleanFilter,
+  resetFilters
 }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const buttons = Array.from(dialogRef.current.querySelectorAll('button:not([disabled])')) as HTMLElement[];
+      if (!buttons.length) return;
+      if (event.shiftKey && document.activeElement === buttons[0]) { event.preventDefault(); buttons[buttons.length - 1].focus(); }
+      else if (!event.shiftKey && document.activeElement === buttons[buttons.length - 1]) { event.preventDefault(); buttons[0].focus(); }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = previousOverflow; previousFocus?.focus(); };
+  }, [isOpen, onClose]);
   if (!isOpen) return null;
 
   const hasActiveFilters = 
@@ -31,19 +53,19 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
       
       {/* Sliding Drawer Container */}
-      <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col animate-fade-in">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="mobile-filter-title" className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col animate-fade-in">
         
         {/* Header */}
         <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-white z-10 shrink-0">
           <div>
-            <h2 className="text-lg font-heading font-black text-slate-900 tracking-tight">Filtres de recherche</h2>
+            <h2 id="mobile-filter-title" className="text-lg font-heading font-black text-slate-900 tracking-tight">Filtres de recherche</h2>
             {hasActiveFilters && (
               <p className="text-[11px] text-slate-500 font-bold">
                 Certains filtres sont actifs
               </p>
             )}
           </div>
-          <button onClick={onClose} className="p-2.5 bg-slate-100 rounded-xl hover:bg-slate-200 text-slate-700 transition-colors">
+          <button ref={closeRef} type="button" aria-label="Fermer les filtres" onClick={onClose} className="p-2.5 bg-slate-100 rounded-xl hover:bg-slate-200 text-slate-700 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -68,6 +90,7 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
                 </div>
                 <button
                   type="button"
+                  role="switch" aria-label="Télétravail à 100 %" aria-checked={filters.remote}
                   onClick={() => toggleBooleanFilter?.('remote')}
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                     filters.remote ? 'bg-primary' : 'bg-slate-200'
@@ -92,6 +115,7 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
                 </div>
                 <button
                   type="button"
+                  role="switch" aria-label="Offres urgentes" aria-checked={filters.urgent}
                   onClick={() => toggleBooleanFilter?.('urgent')}
                   className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
                     filters.urgent ? 'bg-red-500' : 'bg-slate-200'
@@ -119,6 +143,7 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
                   <button
                     key={type}
                     type="button"
+                    aria-pressed={isSelected}
                     onClick={() => handleCheckboxChange('types', type)}
                     className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-250 ${
                       isSelected 
@@ -136,15 +161,16 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
           {/* Localisation */}
           <div>
             <h3 className="font-heading font-black mb-3 text-xs uppercase text-slate-400 tracking-wider flex items-center gap-2">
-              <MapPin size={14} /> Localisation
+              <MapPin size={14} /> Province
             </h3>
             <div className="grid grid-cols-2 gap-2">
-              {['Antananarivo', 'Toamasina', 'Antsirabe', 'Fianarantsoa', 'Mahajanga', 'Toliara'].map(city => {
+              {PROVINCES.map(city => {
                 const isSelected = filters.locations.includes(city);
                 return (
                   <button
                     key={city}
                     type="button"
+                    aria-pressed={isSelected}
                     onClick={() => handleCheckboxChange('locations', city)}
                     className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left truncate ${
                       isSelected 
@@ -163,12 +189,13 @@ export const MobileFilterDrawer: React.FC<MobileFilterDrawerProps> = ({
 
         {/* Footer Actions */}
         <div className="p-5 border-t border-slate-100 bg-white shadow-xl shrink-0">
+          {hasActiveFilters && <button type="button" onClick={resetFilters} className="w-full mb-3 py-2 text-sm font-bold text-slate-600 hover:text-slate-900">Effacer les filtres</button>}
           <button 
             type="button"
             onClick={onClose}
             className="w-full py-4 bg-primary hover:bg-yellow-400 text-slate-950 font-black text-sm rounded-2xl shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all active:scale-[0.98]"
           >
-            Appliquer les Filtres
+            Voir les résultats
           </button>
         </div>
       </div>

@@ -1,186 +1,88 @@
-
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, User } from '../context/AuthContext';
 import { MOCK_STUDENT_PROFILE } from '../data/studentData';
-import { COMPANY_DASHBOARD_DATA } from '../data/dashboardData';
+import { createPasswordCredential, DEMO_EMAIL_ROLES, DEMO_PASSWORD, isValidSessionUser, normalizeEmail, publicSessionUser, readLocalUsers, returnPathForRole, verifyLocalPassword } from '../utils/localAuth';
+
+const DEMO_IDENTITIES = {
+  student: { id: 999, email: 'etudiant@rise.mg', firstName: 'Rary', lastName: 'Rakoto', role: 'student', title: 'Étudiant en Informatique', avatarUrl: 'https://ui-avatars.com/api/?name=Rary+Rakoto&background=0f172a&color=fff' },
+  company: { id: 1, email: 'pro@rise.mg', firstName: 'Sarah', lastName: 'Andria', role: 'company', companyName: 'TechMada Solutions', industry: 'Tech', companySize: '51-200', location: 'Antananarivo', description: 'Profil d’entreprise de démonstration.' },
+  individual: { id: 102, email: 'perso@rise.mg', firstName: 'Mme', lastName: 'Ravaka', role: 'individual', companyName: 'Famille Ravaka', location: 'Ambatobe, Antananarivo', bio: 'Profil particulier de démonstration.' }
+} as const;
 
 export const useLoginLogic = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const submitting = useRef(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
+    setError('');
   };
-
   const fillDemoCredentials = (role: 'student' | 'company' | 'individual') => {
-      if (role === 'student') setFormData({ email: 'etudiant@rise.mg', password: 'password123' });
-      if (role === 'company') setFormData({ email: 'pro@rise.mg', password: 'password123' });
-      if (role === 'individual') setFormData({ email: 'perso@rise.mg', password: 'password123' });
+    setFormData({ email: DEMO_IDENTITIES[role].email, password: DEMO_PASSWORD });
+    setError('');
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-
-    setTimeout(() => {
-      let userData: User | null = null;
-
-      // Charger la "DB" locale avec sécurité
-      const dbUsersStr = localStorage.getItem('rise_db_users');
-      let dbUsers = [];
-      try {
-          dbUsers = dbUsersStr ? JSON.parse(dbUsersStr) : [];
-          if (!Array.isArray(dbUsers)) dbUsers = [];
-      } catch (e) {
-          dbUsers = [];
-          localStorage.setItem('rise_db_users', '[]');
+    if (submitting.current) return;
+    submitting.current = true; setIsSubmitting(true); setError('');
+    try {
+      const email = normalizeEmail(formData.email);
+      const password = formData.password;
+      if (!email || !password || password.length > 1024) throw new Error('Adresse e-mail ou mot de passe incorrect.');
+      let users = readLocalUsers();
+      const matching = users.filter(u => typeof u?.email === 'string' && normalizeEmail(u.email) === email);
+      if (matching.length > 1) throw new Error('Plusieurs comptes locaux utilisent cette adresse. Connexion interrompue pour éviter de choisir le mauvais compte.');
+      let account: any = matching[0];
+      if (!account && DEMO_EMAIL_ROLES[email]) {
+        if (password !== DEMO_PASSWORD) throw new Error('Adresse e-mail ou mot de passe incorrect.');
+        const role = DEMO_EMAIL_ROLES[email];
+        const identity = DEMO_IDENTITIES[role];
+        const idTaken = users.some(u => u?.id != null && String(u.id) === String(identity.id));
+        const uniqueId = idTaken ? `demo-${role}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}` : identity.id;
+        account = { ...(role === 'student' ? MOCK_STUDENT_PROFILE : {}), ...identity, id: uniqueId, isDemo: true };
+        users.push(account);
+        localStorage.setItem('rise_db_users', JSON.stringify(users));
+        // Offres fictives pour illustrer le tableau de bord entreprise ; ne jamais écraser une liste illisible.
+        if (role === 'company') {
+          try {
+            const raw = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
+            if (Array.isArray(raw) && !raw.some((j: any) => j?.ownerId != null && String(j.ownerId) === String(uniqueId))) {
+              const base = { ownerId: uniqueId, company: account.companyName, location: 'Antananarivo', province: 'Antananarivo', status: 'Actif', candidates: 0, isDemo: true, remote: false, isUrgent: false, postedAt: 'Exemple', logoUrl: '', salary: 'À discuter' };
+              const seeds = [
+                { ...base, id: `demo-${uniqueId}-job-1`, title: 'Développeur Fullstack React/Node', type: 'CDI', description: 'Exemple de mission de développement logiciel.', tags: ['Tech', 'React'] },
+                { ...base, id: `demo-${uniqueId}-job-2`, title: 'Stagiaire assistant RH', type: 'Stage', description: 'Exemple de stage en ressources humaines.', tags: ['RH', 'Stage'] }
+              ];
+              localStorage.setItem('rise_jobs', JSON.stringify([...seeds, ...raw]));
+            }
+          } catch { /* le compte reste utilisable si les offres locales sont illisibles */ }
+        }
       }
-      
-      const findUser = (email: string) => dbUsers.find((u: any) => u.email.toLowerCase() === email.toLowerCase());
-
-      // 1. Gestion des comptes DÉMO (avec persistance)
-      if (formData.email === 'etudiant@rise.mg') {
-          userData = findUser('etudiant@rise.mg');
-          if (!userData) {
-             userData = { 
-                ...MOCK_STUDENT_PROFILE, 
-                id: 999, 
-                role: 'student',
-                email: 'etudiant@rise.mg',
-                firstName: 'Rary',
-                lastName: 'Rakoto',
-                title: 'Étudiant en Informatique',
-                avatarUrl: "https://ui-avatars.com/api/?name=Rary+Rakoto&background=0f172a&color=fff"
-             };
-             dbUsers.push(userData);
-             localStorage.setItem('rise_db_users', JSON.stringify(dbUsers));
-          }
-      } else if (formData.email === 'pro@rise.mg') {
-          userData = findUser('pro@rise.mg');
-          if (!userData) {
-             // Création initiale du compte démo Entreprise (RICHE EN DONNÉES)
-             userData = { 
-                 id: 1, 
-                 firstName: 'Sarah', 
-                 lastName: 'Andria', 
-                 role: 'company', 
-                 email: 'pro@rise.mg',
-                 companyName: 'TechMada Solutions', 
-                 logoUrl: "https://ui-avatars.com/api/?name=TechMada&background=2563eb&color=fff&size=128",
-                 coverUrl: "", // Pas de cover par défaut
-                 industry: "Tech",
-                 companySize: "51-200",
-                 founded: "2018",
-                 website: "www.techmada.mg",
-                 location: "Antananarivo, Galaxy Andraharo",
-                 description: "Accélérateur de transformation digitale à Madagascar.",
-                 bio: "Chez TechMada, nous développons des solutions logicielles innovantes pour les entreprises de l'Océan Indien. Notre équipe de 80 passionnés travaille sur des projets web, mobile et IA. Nous valorisons l'apprentissage continu et l'esprit d'initiative.",
-                 perks: ["Télétravail hybride", "Formations certifiantes", "Assurance santé", "Salle de sport", "Team Building trimestriel"],
-                 position: "DRH",
-                 contactRole: "DRH" // Fallback pour compatibilité
-             };
-             dbUsers.push(userData);
-             localStorage.setItem('rise_db_users', JSON.stringify(dbUsers));
-
-             // --- SEED JOBS FOR DEMO ---
-             // On ajoute des jobs par défaut pour ce recruteur s'ils n'existent pas
-             let existingJobs = [];
-             try {
-                 existingJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-                 if(!Array.isArray(existingJobs)) existingJobs = [];
-             } catch { existingJobs = []; }
-
-             const hasUserJobs = existingJobs.some((j: any) => j.ownerId === 1);
-             
-             if (!hasUserJobs) {
-                 const seedJobs = [
-                    {
-                        id: Date.now() + 1,
-                        ownerId: 1,
-                        title: 'Développeur Fullstack React/Node',
-                        type: 'CDI',
-                        location: 'Antananarivo',
-                        company: 'TechMada Solutions',
-                        logoUrl: "https://ui-avatars.com/api/?name=TechMada&background=2563eb&color=fff",
-                        salary: 'À discuter',
-                        description: "<p>Nous cherchons un développeur passionné pour rejoindre notre squad produit.</p><ul><li>React.js / Next.js</li><li>Node.js / NestJS</li><li>PostgreSQL</li></ul>",
-                        candidates: 5,
-                        status: 'Actif',
-                        postedAt: "Il y a 2 jours",
-                        tags: ['Tech', 'Dev', 'Fullstack'],
-                        isUrgent: true,
-                        remote: false
-                    },
-                    {
-                        id: Date.now() + 2,
-                        ownerId: 1,
-                        title: 'Stagiaire Assistant RH',
-                        type: 'Stage',
-                        location: 'Antananarivo',
-                        company: 'TechMada Solutions',
-                        logoUrl: "https://ui-avatars.com/api/?name=TechMada&background=2563eb&color=fff",
-                        salary: 'Indemnité de stage',
-                        description: "<p>Assister la DRH dans le recrutement et la gestion administrative du personnel.</p>",
-                        candidates: 12,
-                        status: 'Actif',
-                        postedAt: "Il y a 1 semaine",
-                        tags: ['RH', 'Admin', 'Stage'],
-                        isUrgent: false,
-                        remote: false
-                    }
-                 ];
-                 localStorage.setItem('rise_jobs', JSON.stringify([...seedJobs, ...existingJobs]));
-             }
-          }
-      } else if (formData.email === 'perso@rise.mg') {
-          userData = findUser('perso@rise.mg');
-          if (!userData) {
-             userData = { 
-                 id: 102, 
-                 firstName: 'Mme', 
-                 lastName: 'Ravaka', 
-                 companyName: 'Famille Ravaka', // Nom d'affichage
-                 role: 'individual', 
-                 email: 'perso@rise.mg', 
-                 location: 'Ambatobe, Tana',
-                 avatarUrl: "https://ui-avatars.com/api/?name=Ravaka&background=f472b6&color=fff",
-                 bio: "Mère de famille cherchant ponctuellement de l'aide pour le soutien scolaire de mes enfants et la gestion de la maison.",
-                 needs: ["Soutien Scolaire", "Aide à domicile"]
-             };
-             dbUsers.push(userData);
-             localStorage.setItem('rise_db_users', JSON.stringify(dbUsers));
-          }
-      } else {
-          userData = findUser(formData.email);
+      if (!account || !isValidSessionUser(account) || !(await verifyLocalPassword(account, password))) throw new Error('Adresse e-mail ou mot de passe incorrect.');
+      // Les anciens comptes locaux en clair sont migrés uniquement après une vérification réussie.
+      if (typeof account.password === 'string' && account.password && !account.passwordCredential) {
+        const credential = await createPasswordCredential(password);
+        users = readLocalUsers();
+        const index = users.findIndex(u => u?.id != null && String(u.id) === String(account.id) && typeof u.email === 'string' && normalizeEmail(u.email) === email);
+        if (index < 0 || users[index].password !== account.password) throw new Error('Ce compte a changé pendant la connexion. Réessayez.');
+        account = { ...users[index], passwordCredential: credential };
+        delete account.password; delete account.confirmPassword;
+        users[index] = account;
+        localStorage.setItem('rise_db_users', JSON.stringify(users));
       }
-
-      setIsSubmitting(false);
-
-      if (userData) {
-          login(userData, 'token-' + Date.now());
-          window.Toastify({
-            text: `Bon retour ${userData.firstName ? userData.firstName : ''} !`,
-            duration: 2000,
-            gravity: "top", 
-            position: "center", 
-            style: { background: "linear-gradient(to right, #10B981, #059669)", borderRadius: "8px", fontWeight: "600" },
-          }).showToast();
-          navigate('/profile');
-      } else {
-          window.Toastify({
-            text: "Email inconnu. Utilisez un compte de démo ou inscrivez-vous.",
-            duration: 3000,
-            gravity: "top", 
-            position: "center", 
-            style: { background: "#ef4444", borderRadius: "8px" },
-          }).showToast();
-      }
-    }, 1000);
+      login(publicSessionUser(account) as User, `demo-${Date.now()}`);
+      navigate(returnPathForRole(location.state?.returnTo, account.role), { replace: true, state: location.state?.returnState });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Connexion locale impossible. Veuillez réessayer.');
+    } finally {
+      submitting.current = false; setIsSubmitting(false);
+    }
   };
-
-  return { formData, isSubmitting, handleInputChange, fillDemoCredentials, handleSubmit };
+  return { formData, isSubmitting, error, handleInputChange, fillDemoCredentials, handleSubmit };
 };

@@ -1,76 +1,136 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Building2, ArrowRight, Sparkles, UserCircle2, Lightbulb } from 'lucide-react';
+import { Search, MapPin, Building2, ArrowRight, Lightbulb } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { PROVINCES } from '../../utils/provinces';
+import { getAvailableJobs, getJobSuggestions } from '../../utils/jobSearch';
+import { Job } from '../../types';
+import RegisteredCompaniesStrip from './RegisteredCompaniesStrip';
+
+const PLACEHOLDERS = [
+  "Marketing à Antananarivo...",
+  "Stage Informatique...",
+  "Job d'été...",
+  "Freelance Design...",
+  "Cours de Maths à domicile..."
+];
+
+const HERO_SLIDES = [
+  {
+    audience: "Étudiants",
+    line1Prefix: "Trouvez un ",
+    line1Highlight: "stage",
+    line1Suffix: " ou job",
+    line2Prefix: "et publiez ",
+    line2Highlight: "votre projet"
+  },
+  {
+    audience: "Entreprises",
+    line1Prefix: "Recrutez des ",
+    line1Highlight: "étudiants",
+    line1Suffix: "",
+    line2Prefix: "et soutenez ",
+    line2Highlight: "un projet"
+  },
+  {
+    audience: "Particuliers",
+    line1Prefix: "Trouvez un ",
+    line1Highlight: "coup de main",
+    line1Suffix: "",
+    line2Prefix: "étudiant ",
+    line2Highlight: "fiable"
+  }
+];
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState("Toute l'île");
   const [activePlaceholder, setActivePlaceholder] = useState(0);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isHeadlineHovered, setIsHeadlineHovered] = useState(false);
+  const [availableJobs, setAvailableJobs] = useState<Job[]>([]);
 
-  const placeholders = [
-    "Marketing à Antananarivo...",
-    "Stage Informatique...",
-    "Job d'été...",
-    "Freelance Design...",
-    "Cours de Maths à domicile..."
-  ];
-
-  const INITIAL_PARTNERS = [
-    { name: "TELMA", color: "text-slate-800" },
-    { name: "ORANGE", color: "text-orange-600" },
-    { name: "AXIAN", color: "text-red-600" },
-    { name: "SOCIETE GENERALE", color: "text-red-500" },
-    { name: "BOLLORÉ", color: "text-blue-800" },
-    { name: "RAVINALA AIRPORTS", color: "text-green-600" },
-    { name: "VIVETIC", color: "text-purple-600" },
-    { name: "JIRAMA", color: "text-blue-500" }
-  ];
-
-  const [partners, setPartners] = useState(INITIAL_PARTNERS);
-
-  // Charger les partenaires dynamiques (entreprises inscrites)
   useEffect(() => {
-      const dbUsersStr = localStorage.getItem('rise_db_users');
-      if (dbUsersStr) {
-          const dbUsers = JSON.parse(dbUsersStr);
-          const newPartners = dbUsers
-              .filter((u: any) => u.role === 'company' && u.companyName)
-              .map((u: any) => ({
-                  name: u.companyName.toUpperCase(),
-                  color: "text-slate-700" // Couleur neutre pour les nouveaux
-              }));
-          
-          // On évite les doublons simples basés sur le nom
-          const uniqueNewPartners = newPartners.filter((np: any) => 
-              !INITIAL_PARTNERS.some(ip => ip.name === np.name)
-          );
-
-          if (uniqueNewPartners.length > 0) {
-              setPartners([...INITIAL_PARTNERS, ...uniqueNewPartners]);
-          }
-      }
+    const refreshJobs = () => setAvailableJobs(getAvailableJobs());
+    refreshJobs();
+    window.addEventListener('storage', refreshJobs);
+    window.addEventListener('focus', refreshJobs);
+    return () => {
+      window.removeEventListener('storage', refreshJobs);
+      window.removeEventListener('focus', refreshJobs);
+    };
   }, []);
+
+  useEffect(() => {
+    if (user?.role === 'company') {
+      setActiveSlide(1);
+    } else if (user?.role === 'individual') {
+      setActiveSlide(2);
+    } else {
+      setActiveSlide(0);
+    }
+  }, [user?.role]);
 
   // Rotation automatique du placeholder pour inspirer l'utilisateur
   useEffect(() => {
     const interval = setInterval(() => {
-      setActivePlaceholder((prev) => (prev + 1) % placeholders.length);
+      setActivePlaceholder((prev) => (prev + 1) % PLACEHOLDERS.length);
     }, 3000);
     return () => clearInterval(interval);
   }, []);
 
+  // Rotation automatique du titre pour s'adresser aux 3 cibles (Étudiants, Entreprises, Particuliers)
+  useEffect(() => {
+    if (isHeadlineHovered) return;
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % HERO_SLIDES.length);
+    }, 3500);
+    return () => clearInterval(interval);
+  }, [isHeadlineHovered]);
+
+  const navigateToSearch = (query: string) => {
+    const params = new URLSearchParams();
+    if (query.trim()) params.set('q', query.trim());
+    if (selectedLocation && selectedLocation !== "Toute l'île") {
+      params.set('loc', selectedLocation);
+    }
+    const queryString = params.toString();
+    navigate(queryString ? `/search?${queryString}` : '/search');
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/search?q=${searchQuery}`);
+    navigateToSearch(searchQuery);
+  };
+
+  const suggestions = getJobSuggestions(
+    availableJobs,
+    selectedLocation === "Toute l'île" ? undefined : selectedLocation
+  );
+
+  const handleProjectCta = () => {
+    if (user?.role === 'student') {
+      navigate('/profile?tab=projects&action=new');
+    } else {
+      navigate('/resources');
     }
   };
 
+  const handlePublishOfferCta = () => {
+    if (user && (user.role === 'company' || user.role === 'individual')) {
+      navigate('/dashboard?tab=post-job');
+    } else {
+      navigate('/register?type=company');
+    }
+  };
+
+  const currentSlide = HERO_SLIDES[activeSlide];
+
   return (
-    <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden bg-white">
+    <section className="relative pt-8 pb-16 lg:pt-12 lg:pb-24 overflow-hidden bg-white">
       {/* Abstract Grid Background - Modern SaaS look */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
       
@@ -81,22 +141,60 @@ const HeroSection: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
         
         {/* Animated Badge */}
-        <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-yellow-50 border border-yellow-100 text-sm font-semibold mb-8 text-yellow-800 hover:bg-yellow-100 transition-colors cursor-default animate-fade-in">
+        <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-yellow-50 border border-yellow-100 text-sm font-semibold mb-4 text-yellow-800 hover:bg-yellow-100 transition-colors cursor-default animate-fade-in">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
             </span>
-            #1 Plateforme Étudiante à Madagascar
+            #1 Écosystème Jeunes Talents à Madagascar
         </div>
 
-        {/* Main Title - Solid Color */}
-        <h1 className="text-5xl md:text-7xl font-heading font-extrabold text-slate-900 tracking-tight mb-8 leading-tight animate-fade-in">
-           Trouvez un <span className="text-yellow-600">stage</span> ou<br className="hidden md:block" />
-           publiez votre <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-yellow-600">projet</span>.
-        </h1>
+        {/* Audience Selector Pills (synced with rotating headline) */}
+        <div
+          className="flex flex-wrap items-center justify-center gap-2 mb-4"
+          onMouseEnter={() => setIsHeadlineHovered(true)}
+          onMouseLeave={() => setIsHeadlineHovered(false)}
+        >
+          {HERO_SLIDES.map((slide, idx) => (
+            <button
+              key={slide.audience}
+              type="button"
+              onClick={() => setActiveSlide(idx)}
+              className={`px-3.5 py-1 rounded-full text-xs font-bold transition-all border ${
+                activeSlide === idx
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  : 'bg-white/80 text-slate-500 border-gray-200 hover:border-slate-300 hover:text-slate-800'
+              }`}
+            >
+              {slide.audience}
+            </button>
+          ))}
+        </div>
+
+        {/* Main Rotating Title */}
+        <div
+          className="min-h-[108px] md:min-h-[156px] flex items-center justify-center mb-4"
+          onMouseEnter={() => setIsHeadlineHovered(true)}
+          onMouseLeave={() => setIsHeadlineHovered(false)}
+        >
+          <h1
+            key={activeSlide}
+            className="text-4xl sm:text-5xl md:text-7xl font-heading font-extrabold text-slate-900 tracking-tight leading-tight animate-[fadeIn_0.45s_ease-out_forwards]"
+          >
+            {currentSlide.line1Prefix}
+            <span className="text-yellow-600">{currentSlide.line1Highlight}</span>
+            {currentSlide.line1Suffix}
+            <br />
+            {currentSlide.line2Prefix}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-500 to-yellow-600">
+              {currentSlide.line2Highlight}
+            </span>
+            .
+          </h1>
+        </div>
         
-        <p className="mt-4 max-w-2xl mx-auto text-xl text-slate-600 mb-12 leading-relaxed animate-fade-in delay-100">
-          La plateforme tout-en-un pour les étudiants : consultez des milliers d'offres de stage et donnez de la visibilité à vos projets innovants.
+        <p className="mt-2 max-w-2xl mx-auto text-lg md:text-xl text-slate-600 mb-8 leading-relaxed animate-fade-in delay-100">
+          Connectez les étudiants de Madagascar aux entreprises et particuliers pour leurs stages et missions — et trouvez des investisseurs ou collaborateurs pour vos projets.
         </p>
 
         {/* Enhanced Search Bar Container */}
@@ -111,7 +209,8 @@ const HeroSection: React.FC = () => {
                   <Search className="ml-4 text-gray-400 w-5 h-5 shrink-0" />
                   <input
                     type="text"
-                    placeholder={placeholders[activePlaceholder]}
+                    aria-label="Rechercher une offre, un métier ou une ville"
+                    placeholder={PLACEHOLDERS[activePlaceholder]}
                     className="w-full p-4 text-gray-800 bg-transparent text-lg placeholder-gray-400 focus:outline-none truncate font-medium"
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setIsSearchFocused(false)}
@@ -120,15 +219,17 @@ const HeroSection: React.FC = () => {
                   />
                </div>
                
-               {/* Location Input (Fake dropdown for visual) */}
-               <div className="hidden md:flex items-center w-1/3 px-2 border-l border-gray-50 bg-gray-50/50 h-full py-1">
+               {/* Location Input */}
+               <div className="flex items-center w-full md:w-1/3 px-2 border-t md:border-t-0 md:border-l border-gray-50 bg-gray-50/50 h-full py-1">
                    <MapPin className="ml-4 text-gray-400 w-5 h-5 shrink-0" />
-                   <select className="w-full p-4 text-gray-700 bg-transparent text-base focus:outline-none cursor-pointer appearance-none bg-none font-medium hover:text-yellow-600 transition-colors">
-                       <option>Toute l'île</option>
-                       <option>Antananarivo</option>
-                       <option>Toamasina</option>
-                       <option>Antsirabe</option>
-                       <option>Remote</option>
+                   <select
+                     value={selectedLocation}
+                     onChange={(e) => setSelectedLocation(e.target.value)}
+                     aria-label="Localisation"
+                     className="w-full p-4 text-gray-700 bg-transparent text-base focus:outline-none cursor-pointer appearance-none bg-none font-medium hover:text-yellow-600 transition-colors"
+                   >
+                       <option value="Toute l'île">Toute l'île</option>
+                       {PROVINCES.map(province => <option key={province} value={province}>{province}</option>)}
                    </select>
                </div>
 
@@ -144,104 +245,56 @@ const HeroSection: React.FC = () => {
             </div>
           </form>
           
-          {/* Action Links */}
-           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-6 animate-fade-in delay-200">
-             <div className="text-sm text-gray-500 flex items-center gap-2">
-                 <span>Populaire :</span>
-                 <button onClick={() => navigate('/search?q=Marketing')} className="hover:text-yellow-600 hover:underline">Marketing</button>
-                 <button onClick={() => navigate('/search?q=Informatique')} className="hover:text-yellow-600 hover:underline">Dev</button>
-             </div>
-             
-             {/* Only show "Publier un projet" link if user is student or not logged in */}
-             {(!user || user.role === 'student') && (
-                 <>
-                    <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full"></div>
+          {/* Popular Searches + Double CTA (Option 3) */}
+          <div className="mt-8 flex flex-col items-center justify-center gap-6 animate-fade-in delay-200">
+            {suggestions.length > 0 && (
+              <div className="text-sm text-gray-500 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+                <span>Suggestions d'offres :</span>
+                {suggestions.map(({ term }) => (
+                  <button key={term} type="button" onClick={() => navigateToSearch(term)} className="hover:text-yellow-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-yellow-600 rounded">
+                    {term}
+                  </button>
+                ))}
+              </div>
+            )}
 
-                    <button 
-                        onClick={() => navigate('/resources')}
-                        className="flex items-center gap-2 text-sm font-bold text-slate-900 bg-white border border-gray-200 px-4 py-2 rounded-full hover:border-primary hover:shadow-md transition-all group"
-                    >
-                        <Lightbulb size={16} className="text-yellow-600 group-hover:scale-110 transition-transform" />
-                        Vous avez une idée ? Publiez un projet
-                    </button>
-                 </>
-             )}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={handleProjectCta}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-bold text-slate-900 bg-white border border-gray-200 px-5 py-3 rounded-xl hover:border-primary hover:shadow-md transition-all group"
+              >
+                <Lightbulb size={17} className="text-yellow-600 group-hover:scale-110 transition-transform" />
+                {user && user.role !== 'student' ? 'Découvrir les projets étudiants' : 'Publier un projet'}
+              </button>
+
+              {user?.role !== 'student' ? (
+                <button
+                  type="button"
+                  onClick={handlePublishOfferCta}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-bold text-white bg-slate-900 px-5 py-3 rounded-xl hover:bg-slate-800 hover:shadow-md transition-all group"
+                >
+                  <Building2 size={17} className="text-primary" />
+                  Publier une offre (Pro / Perso)
+                  <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => navigate('/search')}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 text-sm font-bold text-white bg-slate-900 px-5 py-3 rounded-xl hover:bg-slate-800 hover:shadow-md transition-all group"
+                >
+                  Voir toutes les offres
+                  <ArrowRight size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Business & Private Individual CTA Block - HIDDEN IF STUDENT */}
-        {user?.role !== 'student' && (
-            <div className="mt-12 flex justify-center animate-fade-in delay-300">
-                <div 
-                    className="group cursor-pointer bg-white/60 backdrop-blur-md border border-gray-200 p-2 pr-6 rounded-full shadow-sm hover:shadow-lg hover:border-primary/40 transition-all flex items-center gap-4 max-w-xl"
-                    onClick={() => navigate('/companies')}
-                >
-                    <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-slate-900 transition-all shadow-md">
-                        <div className="flex -space-x-1">
-                            <Building2 size={16} />
-                            <UserCircle2 size={16} className="-ml-1 text-white group-hover:text-slate-900" />
-                        </div>
-                    </div>
-                    <div className="text-left flex-1">
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                            Recruteurs (Pro & Particuliers) <Sparkles size={10} className="text-yellow-500" />
-                        </p>
-                        <p className="text-sm font-bold text-slate-900 leading-tight">
-                            Entreprise ou Besoin perso ? Publiez une offre facilement.
-                        </p>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-slate-900 group-hover:text-white transition-colors">
-                        <ArrowRight size={16} />
-                    </div>
-                </div>
-            </div>
-        )}
-
       </div>
       
-      {/* Logos Strip with Infinite Scroll */}
-      <div className="mt-20 border-y border-gray-100 bg-slate-50/50 backdrop-blur-sm overflow-hidden py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-            <p className="text-center text-xs font-bold text-gray-400 uppercase tracking-[0.2em]">Ils font confiance à Rise</p>
-        </div>
-        
-        <div className="relative flex overflow-x-hidden group">
-             {/* Fade Gradients at edges */}
-             <div className="absolute top-0 bottom-0 left-0 w-32 z-10 bg-gradient-to-r from-slate-50 to-transparent pointer-events-none"></div>
-             <div className="absolute top-0 bottom-0 right-0 w-32 z-10 bg-gradient-to-l from-slate-50 to-transparent pointer-events-none"></div>
-
-             {/* Scrolling Track - Duplicated content for seamless loop */}
-             <div className="flex animate-scroll whitespace-nowrap hover:[animation-play-state:paused]">
-                
-                {/* First Set */}
-                <div className="flex items-center gap-16 mx-8 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-                   {partners.map((partner, idx) => (
-                      <span key={`1-${idx}`} className={`font-heading font-extrabold text-2xl tracking-tight ${partner.color}`}>
-                          {partner.name}
-                      </span>
-                   ))}
-                </div>
-
-                {/* Second Set (Duplicate) */}
-                <div className="flex items-center gap-16 mx-8 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-                   {partners.map((partner, idx) => (
-                      <span key={`2-${idx}`} className={`font-heading font-extrabold text-2xl tracking-tight ${partner.color}`}>
-                          {partner.name}
-                      </span>
-                   ))}
-                </div>
-                 {/* Third Set (Duplicate for extra width safety on large screens) */}
-                 <div className="flex items-center gap-16 mx-8 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
-                   {partners.map((partner, idx) => (
-                      <span key={`3-${idx}`} className={`font-heading font-extrabold text-2xl tracking-tight ${partner.color}`}>
-                          {partner.name}
-                      </span>
-                   ))}
-                </div>
-
-             </div>
-        </div>
-      </div>
+      <RegisteredCompaniesStrip />
     </section>
   );
 };

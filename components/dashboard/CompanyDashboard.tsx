@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, ArrowLeft, ExternalLink, Camera } from 'lucide-react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { canPerformAction } from '../../utils/subscription';
 import { Review } from '../../types';
 
 // Modales
@@ -22,6 +24,7 @@ const CompanyDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { logout, user, updateUser } = useAuth();
+  const { openSubscription } = useSubscription();
 
   const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'candidates' | 'mentoring' | 'settings' | 'post-job'>('dashboard');
   const [editingJob, setEditingJob] = useState<any>(null);
@@ -136,6 +139,13 @@ const CompanyDashboard: React.FC = () => {
   };
 
   const handleSaveJob = (jobData: any) => {
+      // Contrôle au moment de l'enregistrement, même en cas d'expiration pendant la saisie.
+      if (!canPerformAction(user, 'publishOffer')) {
+          if (window.Toastify) window.Toastify({ text: 'Un abonnement actif est nécessaire pour publier cette annonce.', style: { background: '#ef4444' } }).showToast();
+          openSubscription();
+          return;
+      }
+
       const allLocalJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
       
       if (editingJob) {
@@ -149,6 +159,7 @@ const CompanyDashboard: React.FC = () => {
           const newJob = {
               id: Date.now().toString(),
               ...jobData,
+              createdAt: new Date().toISOString(),
               candidates: 0
           };
           localStorage.setItem('rise_jobs', JSON.stringify([newJob, ...allLocalJobs]));

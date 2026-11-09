@@ -11,7 +11,7 @@ const RecruiterFeatures: React.FC = () => {
                </span>
                <h2 className="text-3xl font-heading font-bold text-gray-900 mb-4">Pourquoi recruter sur Rise ?</h2>
                <p className="text-gray-500 max-w-2xl mx-auto">
-                  Que vous soyez DRH d'un grand groupe ou un parent cherchant un prof de maths, Rise simplifie tout.
+                  Que vous soyez DRH d'un grand groupe ou un parent cherchant un prof de maths, Rise vous aide à présenter vos besoins aux étudiants.
                </p>
             </div>
 
@@ -26,11 +26,11 @@ const RecruiterFeatures: React.FC = () => {
                   <ul className="space-y-4">
                       <li className="flex items-start gap-3 text-sm text-gray-600">
                           <ShieldCheck className="text-green-500 shrink-0" size={18} />
-                          <span><strong>Profils vérifiés :</strong> Accès aux étudiants certifiés par leurs écoles.</span>
+                          <span><strong>Candidatures étudiantes :</strong> Consultez les réponses aux offres que vous publiez.</span>
                       </li>
                       <li className="flex items-start gap-3 text-sm text-gray-600">
                           <Users className="text-blue-500 shrink-0" size={18} />
-                          <span><strong>CVthèque massive :</strong> +2000 profils qualifiés (Tech, Finance, Marketing).</span>
+                          <span><strong>Parcours et compétences :</strong> Découvrez les informations partagées par les candidats.</span>
                       </li>
                       <li className="flex items-start gap-3 text-sm text-gray-600">
                           <Zap className="text-yellow-500 shrink-0" size={18} />
@@ -53,11 +53,11 @@ const RecruiterFeatures: React.FC = () => {
                       </li>
                       <li className="flex items-start gap-3 text-sm text-gray-600">
                           <ShieldCheck className="text-green-500 shrink-0" size={18} />
-                          <span><strong>Confiance :</strong> Identité validée et avis de la communauté.</span>
+                          <span><strong>Échange :</strong> Consultez les candidatures reçues pour votre annonce.</span>
                       </li>
                       <li className="flex items-start gap-3 text-sm text-gray-600">
                           <Star className="text-yellow-500 shrink-0" size={18} />
-                          <span><strong>Simplicité :</strong> Postez une annonce en 2 minutes sans paperasse complexe.</span>
+                          <span><strong>Simplicité :</strong> Décrivez votre besoin et publiez une annonce.</span>
                       </li>
                   </ul>
                </div>

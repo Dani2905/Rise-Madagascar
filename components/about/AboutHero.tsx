@@ -10,15 +10,14 @@ const AboutHero: React.FC = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
             <span className="inline-block py-1.5 px-4 rounded-full bg-slate-800 border border-slate-700 text-primary font-bold text-xs uppercase tracking-widest mb-8 backdrop-blur-md shadow-xl">
-                L'écosystème #1 à Madagascar
+                Une plateforme pensée pour Madagascar
             </span>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-heading font-extrabold mb-8 leading-tight">
                 Plus qu'un site d'offres, <br/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-yellow-200">un accélérateur de destin.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-light">
-                Rise est la réponse au fossé grandissant entre le monde académique et la réalité du marché malgache. 
-                Nous centralisons <span className="text-white font-medium">stages, missions freelance, et entrepreneuriat</span> sur une seule plateforme.
+                Rise rassemble les étudiants, les entreprises et les particuliers autour des <span className="text-white font-medium">offres, missions et projets étudiants</span>.
             </p>
         </div>
       </section>

@@ -35,7 +35,7 @@ const ResourcesHero: React.FC<ResourcesHeroProps> = ({ activeTab, setActiveTab }
       item1Desc: "N'attendez pas d'être diplômé. Présentez vos innovations scolaires ou personnelles à la communauté dès maintenant.",
       item2Icon: Handshake,
       item2Title: "Trouvez des soutiens",
-      item2Desc: "Investisseurs et entreprises parcourent cette section. Transformez votre projet étudiant en startup ou en embauche."
+      item2Desc: "Présentez vos besoins et recherchez des investisseurs ou des collaborateurs."
   };
 
   return (
@@ -61,6 +61,7 @@ const ResourcesHero: React.FC<ResourcesHeroProps> = ({ activeTab, setActiveTab }
                     <div className="flex justify-center lg:justify-start mt-8">
                         <div className="bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full inline-flex shadow-xl border border-slate-700">
                         <button
+                            type="button" aria-pressed={activeTab === 'projects'}
                             onClick={() => setActiveTab('projects')}
                             className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
                                 activeTab === 'projects' 
@@ -69,9 +70,10 @@ const ResourcesHero: React.FC<ResourcesHeroProps> = ({ activeTab, setActiveTab }
                             }`}
                         >
                             <Lightbulb size={18} />
-                            {isRecruiter ? "Découvrir les Projets" : "Publier un Projet"}
+                            Projets étudiants
                         </button>
                         <button
+                            type="button" aria-pressed={activeTab === 'guides'}
                             onClick={() => setActiveTab('guides')}
                             className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
                                 activeTab === 'guides' 

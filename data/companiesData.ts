@@ -1,7 +1,7 @@
 import { Globe, Facebook, Linkedin } from 'lucide-react';
 
 export interface Company {
-  id: number;
+  id: string | number;
   name: string;
   description: string;
   longDescription?: string;
@@ -18,7 +18,7 @@ export interface Company {
 }
 
 export interface Individual {
-  id: number;
+  id: string | number;
   name: string;
   needs: string[];
   location: string;

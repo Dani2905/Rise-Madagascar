@@ -35,19 +35,19 @@ const ProcessSteps: React.FC<ProcessStepsProps> = ({ activeTab }) => {
                     <StepCard 
                         number="1" 
                         title="Publiez votre idée" 
-                        desc="Remplissez le formulaire à droite. C'est gratuit et ça prend 2 minutes. Pitch court et impactant."
+                        desc="Avec un compte étudiant et un abonnement actif, présentez votre idée et vos besoins."
                         icon={Lightbulb}
                     />
                     <StepCard 
                         number="2" 
                         title="Gagnez en visibilité" 
-                        desc="La communauté vote pour les meilleures idées. Votre projet remonte dans le classement."
+                        desc="Votre projet est consultable dans l’espace projets par les autres membres."
                         icon={Target}
                     />
                     <StepCard 
                         number="3" 
                         title="Trouvez des partenaires" 
-                        desc="Investisseurs et entreprises parcourent le catalogue. Recevez des offres de mentorat."
+                        desc="Entreprises et particuliers peuvent proposer un soutien. Les échanges sont simulés dans cette version."
                         icon={Handshake}
                     />
                 </div>
@@ -56,7 +56,7 @@ const ProcessSteps: React.FC<ProcessStepsProps> = ({ activeTab }) => {
                     <StepCard 
                         number="1" 
                         title="Téléchargez les outils" 
-                        desc="CV, Lettres de motivation, Pitch Deck... Des modèles adaptés au marché malgache."
+                        desc="Téléchargez des trames au format texte et adaptez-les à votre parcours."
                         icon={Download}
                     />
                     <StepCard 
@@ -68,7 +68,7 @@ const ProcessSteps: React.FC<ProcessStepsProps> = ({ activeTab }) => {
                     <StepCard 
                         number="3" 
                         title="Postulez efficacement" 
-                        desc="Utilisez vos nouvelles connaissances pour décrocher le job de vos rêves."
+                        desc="Utilisez ces conseils pour préparer vos candidatures."
                         icon={Rocket}
                     />
                 </div>

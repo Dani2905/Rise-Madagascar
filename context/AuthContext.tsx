@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Subscription } from '../utils/subscription';
+import { isValidSessionUser, publicSessionUser } from '../utils/localAuth';
 
 export interface User {
   firstName: string;
@@ -11,6 +13,7 @@ export interface User {
   logoUrl?: string;
   location?: string;
   hasSubscription?: boolean;
+  subscription?: Subscription | null;
   [key: string]: any;
 }
 
@@ -31,25 +34,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('rise_session_token');
-    const userData = localStorage.getItem('rise_user_data');
-    if (token && userData) {
-      try {
-        setUser(JSON.parse(userData));
-        setIsLoggedIn(true);
-      } catch (e) {
-        console.error("Failed to parse user data", e);
-        localStorage.removeItem('rise_session_token');
-        localStorage.removeItem('rise_user_data');
+    const syncSession = () => {
+      const token = localStorage.getItem('rise_session_token');
+      const userData = localStorage.getItem('rise_user_data');
+      if (token && userData) {
+        try {
+          const parsed = JSON.parse(userData);
+          if (!isValidSessionUser(parsed)) throw new Error('Invalid local session');
+          const safe = publicSessionUser(parsed);
+          if ('password' in parsed || 'confirmPassword' in parsed || 'passwordCredential' in parsed) localStorage.setItem('rise_user_data', JSON.stringify(safe));
+          setUser(safe);
+          setIsLoggedIn(true);
+        } catch (e) {
+          console.error('Failed to parse user data', e);
+          localStorage.removeItem('rise_session_token');
+          localStorage.removeItem('rise_user_data');
+          setUser(null);
+          setIsLoggedIn(false);
+        }
+      } else {
+        setUser(null);
+        setIsLoggedIn(false);
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === 'rise_session_token' || event.key === 'rise_user_data') syncSession();
+    };
+    syncSession();
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
   const login = (userData: User, token: string) => {
+    if (!isValidSessionUser(userData)) throw new Error('Compte local invalide.');
+    const safeUser = publicSessionUser(userData);
+    localStorage.setItem('rise_user_data', JSON.stringify(safeUser));
     localStorage.setItem('rise_session_token', token);
-    localStorage.setItem('rise_user_data', JSON.stringify(userData));
-    setUser(userData);
+    setUser(safeUser);
     setIsLoggedIn(true);
   };
 
@@ -64,24 +86,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
 
     // 1. Mise à jour de l'état local et session
-    const updatedUser = { ...user, ...updates };
+    const updatedUser = publicSessionUser({ ...user, ...updates });
     setUser(updatedUser);
     localStorage.setItem('rise_user_data', JSON.stringify(updatedUser));
     
     // 2. Mise à jour de la "Base de Données" (rise_db_users)
     const dbUsersStr = localStorage.getItem('rise_db_users');
     if (dbUsersStr) {
-        const dbUsers = JSON.parse(dbUsersStr);
-        // On cherche par ID (plus fiable) ou par Email (fallback)
-        const userIndex = dbUsers.findIndex((u: User) => 
-            (u.id && user.id && u.id.toString() === user.id.toString()) || 
-            (u.email === user.email)
-        );
-
-        if (userIndex !== -1) {
-            // Fusionner les données existantes en DB avec les nouvelles mises à jour
-            dbUsers[userIndex] = { ...dbUsers[userIndex], ...updates };
-            localStorage.setItem('rise_db_users', JSON.stringify(dbUsers));
+        try {
+            const dbUsers = JSON.parse(dbUsersStr);
+            if (!Array.isArray(dbUsers)) return;
+            // Ne jamais faire correspondre deux adresses absentes ni deux IDs différents.
+            const userIndex = dbUsers.findIndex((u: User) => {
+                if (!u) return false;
+                if (u.id != null && user.id != null) return String(u.id) === String(user.id);
+                return Boolean(u.email && user.email && u.email.toLowerCase() === user.email.toLowerCase());
+            });
+            if (userIndex !== -1) {
+                dbUsers[userIndex] = { ...dbUsers[userIndex], ...updates };
+                localStorage.setItem('rise_db_users', JSON.stringify(dbUsers));
+            }
+        } catch (error) {
+            console.error('Impossible de mettre à jour les données locales du compte', error);
         }
     }
   };

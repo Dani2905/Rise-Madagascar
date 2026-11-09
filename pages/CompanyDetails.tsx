@@ -1,36 +1,56 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Building2, Lock } from 'lucide-react';
 import { ALL_COMPANIES, INDIVIDUALS } from '../data/companiesData';
+import { getActiveJobsForOwner, getAvailableJobs } from '../utils/jobSearch';
 import CompanyHeader from '../components/company-details/CompanyHeader';
 import CompanyAbout from '../components/company-details/CompanyAbout';
 import CompanyJobs from '../components/company-details/CompanyJobs';
 import { useAuth } from '../context/AuthContext';
+import { getWebsiteUrl } from '../utils/website';
+import { industryLabel } from '../utils/industry';
+import { isDemoRecruiter } from '../utils/demoRecruiter';
 
 const CompanyDetails: React.FC = () => {
   const { id } = useParams();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [company, setCompany] = useState<any>(null);
-  
+  const [dataVersion, setDataVersion] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const fromDirectory = typeof location.state?.fromDirectory === 'string' && /^\/companies(?:\?|$)/.test(location.state.fromDirectory) ? location.state.fromDirectory : '/companies';
+
   useEffect(() => {
-    window.scrollTo(0, 0);
+    const refresh = () => setDataVersion(version => version + 1);
+    window.addEventListener('storage', refresh);
+    window.addEventListener('focus', refresh);
+    return () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); };
+  }, []);
+
+  useEffect(() => { window.scrollTo(0, 0); }, [id]);
+
+  useEffect(() => {
     if (!id) return;
 
     const targetId = id.toString();
 
-    // --- 1. CHARGEMENT DES JOBS (Nécessaire pour compter et générer les tags) ---
-    const allJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-    
-    // Filtrer les jobs appartenant à ce profil
-    const ownerJobs = allJobs.filter((j: any) => 
-        (j.ownerId && j.ownerId.toString() === targetId) && j.status === 'Actif'
-    );
+    const readArray = (key: string): any[] => {
+        try {
+            const value = JSON.parse(localStorage.getItem(key) || '[]');
+            return Array.isArray(value) ? value : [];
+        } catch {
+            return [];
+        }
+    };
 
-    // --- 2. RECHERCHE DU PROFIL DANS LA "DB" LOCALE (Prioritaire) ---
-    const dbUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
-    const userProfile = dbUsers.find((u: any) => u.id.toString() === targetId);
+    // Les liens vers les profils doivent rester utilisables même si une donnée locale est invalide.
+    const ownerJobs = getActiveJobsForOwner(targetId);
+
+    const dbUsers = readArray('rise_db_users');
+    const userProfile = dbUsers.find((u: any) => u?.id != null && String(u.id) === targetId);
+    if (userProfile && userProfile.role !== 'company' && userProfile.role !== 'individual') { setCompany(null); setIsLoading(false); return; }
 
     let finalProfile: any = null;
 
@@ -38,23 +58,19 @@ const CompanyDetails: React.FC = () => {
         // --- CAS A : UTILISATEUR RÉEL OU DÉMO PERSISTÉ ---
         const isIndividual = userProfile.role === 'individual';
         
-        // Génération dynamique des tags "Besoins" pour les particuliers
-        let dynamicNeeds = userProfile.needs || [];
-        if (isIndividual && dynamicNeeds.length === 0) {
-            if (ownerJobs.length > 0) {
-                dynamicNeeds = ownerJobs.map((j: any) => j.title.split(' ')[0] + '...'); // Extrait court
-            } else {
-                dynamicNeeds = ['Aide diverse'];
-            }
-        }
+        const dynamicNeeds = isIndividual
+            ? [...new Set(ownerJobs.map(job => typeof job.title === 'string' ? job.title.trim() : '').filter(Boolean))].slice(0, 3)
+            : [];
+        const individualName = [userProfile.firstName, userProfile.lastName]
+            .filter(part => typeof part === 'string' && part.trim()).map(part => part.trim()).join(' ');
 
         finalProfile = {
             id: userProfile.id,
             // Nom : Priorité au nom d'entreprise/Affichage, sinon Prénom Nom
-            name: userProfile.companyName || `${userProfile.firstName} ${userProfile.lastName}`,
+            name: isIndividual ? (individualName || userProfile.companyName || 'Particulier') : (userProfile.companyName || individualName || 'Entreprise'),
             
             // Slogan / Description courte
-            description: userProfile.description || (isIndividual ? "Membre de la communauté Rise" : "Entreprise membre"),
+            description: (isIndividual ? userProfile.bio || userProfile.description : userProfile.description) || (isIndividual ? "Membre de la communauté Rise" : "Entreprise membre"),
             
             // Corps de texte (Bio / Histoire)
             longDescription: userProfile.bio || userProfile.longDescription || (isIndividual ? "Ce membre n'a pas encore ajouté de description détaillée." : "Cette entreprise n'a pas encore rempli sa présentation."),
@@ -65,20 +81,22 @@ const CompanyDetails: React.FC = () => {
             
             // Métadonnées
             jobs: ownerJobs.length,
-            sector: userProfile.industry || (isIndividual ? "Particulier" : "Autre"),
+            activeJobs: ownerJobs,
+            sector: isIndividual ? 'Particulier' : industryLabel(userProfile.industry),
             location: userProfile.location || userProfile.city || "Madagascar",
             website: userProfile.website || "",
             
             // Champs spécifiques Entreprise
-            founded: userProfile.founded || "2024",
+            founded: userProfile.founded || "",
             employees: userProfile.companySize || "N/A",
-            perks: userProfile.perks || (userProfile.role === 'company' ? ["Recrutement actif"] : []),
+            perks: userProfile.perks || [],
             
             // Champs spécifiques Particulier
             needs: dynamicNeeds,
             
             // Technique
             role: userProfile.role,
+            isDemoProfile: isDemoRecruiter(userProfile),
             registeredAt: userProfile.registeredAt
         };
 
@@ -95,18 +113,30 @@ const CompanyDetails: React.FC = () => {
         }
 
         if (mockData) {
+            const demoJobs = getAvailableJobs().filter(job => !job.ownerId && job.company?.trim().toLowerCase() === mockData.name?.trim().toLowerCase());
             finalProfile = {
                 ...mockData,
+                isDemoProfile: true,
+                activeJobs: demoJobs,
                 longDescription: mockData.longDescription || mockData.description, // Fallback pour les mocks
                 role: role,
                 // Pour les mocks, on garde les jobs statiques définis dans le fichier data
-                jobs: mockData.jobs || mockData.activeOffers || 0
+                jobs: demoJobs.length
             };
         }
     }
 
     setCompany(finalProfile);
-  }, [id]);
+    setIsLoading(false);
+  }, [id, dataVersion]);
+
+  useEffect(() => {
+    if (company && new URLSearchParams(location.search).get('view') === 'offers') {
+      document.getElementById('offres')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [company?.id, location.search]);
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Chargement du profil…</div>;
 
   if (!company) {
       return (
@@ -116,15 +146,15 @@ const CompanyDetails: React.FC = () => {
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Profil introuvable</h2>
             <p className="text-gray-500 mb-6">Ce profil n'existe pas ou a été supprimé.</p>
-            <Link to="/companies" className="text-primary font-bold hover:underline">Retour à l'annuaire</Link>
+            <Link to={fromDirectory} className="text-primary font-bold hover:underline">Retour à l'annuaire</Link>
         </div>
       );
   }
 
   const handleContact = () => {
       // Convention : IDs > 1000 ou ID courts connus (1, 102) = Utilisateurs "connectables"
-      if (company.id) { 
-          navigate(`/messages?partner=${company.id}`);
+      if (company.id && !company.isDemoProfile && String(user?.id) !== String(company.id)) { 
+          navigate(`/messages?partner=${encodeURIComponent(String(company.id))}`);
       } else {
           window.Toastify({
               text: "Messagerie indisponible pour ce profil.",
@@ -135,10 +165,11 @@ const CompanyDetails: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
+      {company.isDemoProfile && <div className="max-w-7xl mx-auto px-4 pt-5"><p className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">Profil de démonstration, non répertorié dans l’annuaire des recruteurs inscrits.</p></div>}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-0">
              <div className="mb-6">
-                <Link to="/companies" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
+                <Link to={fromDirectory} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
                     <ArrowLeft size={16} className="mr-2" /> Retour à l'annuaire
                 </Link>
             </div>
@@ -151,34 +182,30 @@ const CompanyDetails: React.FC = () => {
             <div className="lg:col-span-8 space-y-10">
                 <CompanyAbout company={company} />
                 <div className="border-t border-gray-200 my-8"></div>
-                <CompanyJobs company={company} />
+                <CompanyJobs company={company} jobs={company.activeJobs || []} />
             </div>
 
             <div className="lg:col-span-4 space-y-6">
                 <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-lg shadow-primary/5 sticky top-24">
                     <h3 className="font-heading font-bold text-lg text-slate-900 mb-4">Contacter {company.name}</h3>
-                    {isLoggedIn ? (
+                    {company.isDemoProfile ? <p className="text-sm text-slate-500">Le contact n’est pas disponible pour un profil de démonstration.</p> : user && String(user.id) === String(company.id) ? <p className="text-sm text-slate-500">Il s’agit de votre profil.</p> : isLoggedIn ? (
                         <>
+                            <p className="text-xs text-slate-500 mb-3">Messagerie de démonstration : les échanges restent dans ce navigateur.</p>
                             <button 
                                 onClick={handleContact}
                                 className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors mb-3"
                             >
                                 Envoyer un message
                             </button>
-                            {company.website && (
-                                <button 
-                                    onClick={() => window.open(company.website.startsWith('http') ? company.website : `https://${company.website}`, '_blank')}
-                                    className="w-full py-3 bg-white border border-gray-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors"
-                                >
-                                    Visiter le site web
-                                </button>
+                            {getWebsiteUrl(company.website) && (
+                                <a href={getWebsiteUrl(company.website)!} target="_blank" rel="noopener noreferrer" className="block text-center w-full py-3 bg-white border border-gray-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors">Visiter le site web</a>
                             )}
                         </>
                     ) : (
                         <div className="bg-gray-50 p-4 rounded-xl text-center border border-gray-100">
                             <Lock className="mx-auto text-gray-400 mb-2" size={24} />
                             <p className="text-xs text-gray-500 mb-3">Connectez-vous pour accéder aux options de contact.</p>
-                            <button onClick={() => navigate('/login')} className="w-full py-2.5 bg-primary text-slate-900 rounded-lg font-bold text-sm hover:bg-yellow-400 transition-colors">Se connecter</button>
+                            <button onClick={() => navigate('/login', { state: { returnTo: `${location.pathname}${location.search}`, returnState: location.state } })} className="w-full py-2.5 bg-primary text-slate-900 rounded-lg font-bold text-sm hover:bg-yellow-400 transition-colors">Se connecter</button>
                         </div>
                     )}
                 </div>

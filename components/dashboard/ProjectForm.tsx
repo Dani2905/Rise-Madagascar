@@ -97,11 +97,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
     e.preventDefault();
     setIsSaving(true);
     
-    // Simulate API delay
-    setTimeout(() => {
-      onSave(formData);
-      setIsSaving(false);
-    }, 800);
+    // Vérification et sauvegarde sont effectuées immédiatement par le parent.
+    onSave(formData);
+    setIsSaving(false);
   };
 
   return (
@@ -126,7 +124,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 flex items-start gap-3">
                 <AlertCircle className="shrink-0 mt-0.5" size={18} />
                 <div>
-                    <strong>Conseil :</strong> Décrivez clairement le problème que vous résolvez. Les projets bien détaillés avec une équipe et une roadmap attirent 3x plus d'intérêt.
+                    <strong>Conseil :</strong> Décrivez clairement le problème que vous résolvez. Présentez votre équipe et les prochaines étapes de façon claire.
                 </div>
             </div>
 

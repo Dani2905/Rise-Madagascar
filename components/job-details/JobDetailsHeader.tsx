@@ -11,6 +11,7 @@ interface JobDetailsHeaderProps {
     salary?: string;
     postedAt: string;
     logoUrl: string;
+    isDemo?: boolean;
   };
 }
 
@@ -29,6 +30,7 @@ const JobDetailsHeader: React.FC<JobDetailsHeaderProps> = ({ job }) => {
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">
                     {job.type}
                 </span>
+                {job.isDemo && <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700">Exemple de démonstration</span>}
                 {job.duration && (
                     <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
                         {job.duration}
@@ -48,9 +50,9 @@ const JobDetailsHeader: React.FC<JobDetailsHeaderProps> = ({ job }) => {
                 <span className="flex items-center gap-1.5">
                     <MapPin size={16} className="text-gray-400" /> {job.location}
                 </span>
-                <span className="flex items-center gap-1.5 text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                {job.salary && <span className="flex items-center gap-1.5 text-green-700 bg-green-50 px-2 py-0.5 rounded">
                     <Banknote size={16} /> {job.salary}
-                </span>
+                </span>}
             </div>
         </div>
         </div>

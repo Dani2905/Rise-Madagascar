@@ -2,12 +2,14 @@
 import React from 'react';
 import { MapPin, Globe, Calendar, Users, Building2, ShieldCheck, User, Clock } from 'lucide-react';
 import { Company } from '../../data/companiesData';
+import { getWebsiteUrl } from '../../utils/website';
 
 interface CompanyHeaderProps {
   company: Company & { role?: string; registeredAt?: string };
 }
 
 const CompanyHeader: React.FC<CompanyHeaderProps> = ({ company }) => {
+  const website = getWebsiteUrl(company.website);
   const isIndividual = company.role === 'individual' || company.sector === 'Particulier';
 
   return (
@@ -40,11 +42,7 @@ const CompanyHeader: React.FC<CompanyHeaderProps> = ({ company }) => {
                 <div className="flex-1 w-full pb-2 md:pb-4">
                      <h1 className="text-3xl md:text-5xl font-heading font-black mb-3 flex flex-col md:flex-row items-center md:items-center gap-3 text-slate-900 tracking-tight leading-tight justify-center md:justify-start">
                         {company.name}
-                        {isIndividual && (
-                            <span title="Identité Vérifiée" className="flex items-center">
-                                <ShieldCheck className="text-green-500 bg-green-50 rounded-full p-1" size={28} />
-                            </span>
-                        )}
+
                      </h1>
                      
                      <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm text-gray-500 font-medium">
@@ -56,8 +54,8 @@ const CompanyHeader: React.FC<CompanyHeaderProps> = ({ company }) => {
                              <MapPin size={16} className="text-gray-400" /> {company.location}
                          </span>
                          
-                         {company.website && !isIndividual && (
-                             <a href={`https://${company.website}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-slate-900 transition-colors ml-2">
+                         {website && !isIndividual && (
+                             <a href={website} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 hover:text-slate-900 transition-colors ml-2">
                                  <Globe size={16} className="text-gray-400" /> {company.website}
                              </a>
                          )}
@@ -67,10 +65,10 @@ const CompanyHeader: React.FC<CompanyHeaderProps> = ({ company }) => {
                 {/* Social Actions (Right Side) */}
                 {!isIndividual && (
                     <div className="flex gap-2 mb-2 justify-center w-full md:w-auto shrink-0">
-                        {company.socials?.map((social, idx) => (
+                        {company.socials?.filter(social => getWebsiteUrl(social.url)).map((social, idx) => (
                             <a 
                                 key={idx} 
-                                href={social.url} 
+                                href={getWebsiteUrl(social.url)!} 
                                 className="p-3 rounded-2xl bg-white border border-gray-200 text-slate-700 hover:bg-slate-900 hover:text-white hover:border-slate-900 shadow-sm transition-all"
                             >
                                 {social.type === 'linkedin' && <span className="font-bold text-xs uppercase tracking-wide">in</span>}
@@ -90,18 +88,8 @@ const CompanyHeader: React.FC<CompanyHeaderProps> = ({ company }) => {
                         <div>
                             <p className="text-xs text-gray-400 font-bold uppercase mb-1">Membre depuis</p>
                             <p className="font-bold text-slate-900 flex items-center gap-2">
-                                <Clock size={18} className="text-green-600" /> {new Date().getFullYear()}
+                                <Clock size={18} className="text-green-600" /> {company.registeredAt && !Number.isNaN(new Date(company.registeredAt).getTime()) ? new Date(company.registeredAt).getFullYear() : 'Non renseigné'}
                             </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-400 font-bold uppercase mb-1">Fiabilité</p>
-                            <p className="font-bold text-slate-900 flex items-center gap-2">
-                                <ShieldCheck size={18} className="text-green-600" /> Vérifié
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-400 font-bold uppercase mb-1">Réponse moyenne</p>
-                            <p className="font-bold text-slate-900">~ 2 heures</p>
                         </div>
                      </>
                  ) : (
@@ -118,10 +106,6 @@ const CompanyHeader: React.FC<CompanyHeaderProps> = ({ company }) => {
                             <p className="font-bold text-slate-900 flex items-center gap-2">
                                 <Users size={18} className="text-primary" /> {company.employees || 'N/A'}
                             </p>
-                        </div>
-                        <div>
-                            <p className="text-xs text-gray-400 font-bold uppercase mb-1">Siège</p>
-                            <p className="font-bold text-slate-900">Madagascar</p>
                         </div>
                      </>
                  )}

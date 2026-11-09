@@ -1,56 +1,74 @@
 
-import React, { useState } from 'react';
-import { X, Handshake, TrendingUp, Lightbulb, Send, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Handshake, TrendingUp, Lightbulb, Send } from 'lucide-react';
 import { FloatingTextArea, FloatingInput } from '../FloatingInput';
 
 interface SupportModalProps {
   isOpen: boolean;
   onClose: () => void;
   projectTitle: string;
-  onConfirm: (data: any) => void;
+  onConfirm: (data: { type: 'financing' | 'mentoring' | 'partnership'; message: string; amount?: string }) => boolean;
 }
 
 const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTitle, onConfirm }) => {
   const [supportType, setSupportType] = useState<'financing' | 'mentoring' | 'partnership'>('mentoring');
   const [message, setMessage] = useState('');
   const [amount, setAmount] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const previous = document.activeElement as HTMLElement | null;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const items = Array.from(dialogRef.current.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled])')) as HTMLElement[];
+      if (!items.length) return;
+      if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items[items.length - 1].focus(); }
+      else if (!event.shiftKey && document.activeElement === items[items.length - 1]) { event.preventDefault(); items[0].focus(); }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = oldOverflow; previous?.focus(); };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setTimeout(() => {
-        onConfirm({ type: supportType, message, amount });
-        setIsSubmitting(false);
-        onClose();
-    }, 1000);
+    if (!message.trim()) return;
+    if (onConfirm({ type: supportType, message: message.trim(), amount })) {
+      setMessage(''); setAmount(''); setSupportType('mentoring'); onClose();
+    }
   };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
 
-      <div className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-fade-in overflow-hidden">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="support-title" className="relative bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-in">
         {/* Header Stylisé */}
         <div className="bg-slate-900 p-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2"></div>
-            <h2 className="text-xl font-heading font-bold text-white mb-1 flex items-center gap-2">
+            <h2 id="support-title" className="text-xl font-heading font-bold text-white mb-1 flex items-center gap-2">
                 <TrendingUp className="text-primary" /> Propulser ce projet
             </h2>
             <p className="text-slate-400 text-sm">Soutenez <span className="text-white font-bold">{projectTitle}</span></p>
-            <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+            <button ref={closeRef} type="button" aria-label="Fermer" onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
                 <X size={20} />
             </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 md:p-8">
+            <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 p-3 rounded-xl mb-4">Démonstration locale : cette proposition n’est pas envoyée hors de ce navigateur et aucun paiement n’est effectué.</p>
             <p className="text-sm font-bold text-gray-700 mb-4">Comment souhaitez-vous aider ?</p>
             
             <div className="grid grid-cols-1 gap-3 mb-6">
                 <button
                     type="button"
+                    aria-pressed={supportType === 'mentoring'}
                     onClick={() => setSupportType('mentoring')}
                     className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${supportType === 'mentoring' ? 'border-primary bg-yellow-50 shadow-md' : 'border-gray-100 hover:border-gray-200'}`}
                 >
@@ -65,6 +83,7 @@ const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTit
 
                 <button
                     type="button"
+                    aria-pressed={supportType === 'financing'}
                     onClick={() => setSupportType('financing')}
                     className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${supportType === 'financing' ? 'border-green-500 bg-green-50 shadow-md' : 'border-gray-100 hover:border-gray-200'}`}
                 >
@@ -79,6 +98,7 @@ const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTit
 
                 <button
                     type="button"
+                    aria-pressed={supportType === 'partnership'}
                     onClick={() => setSupportType('partnership')}
                     className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${supportType === 'partnership' ? 'border-blue-500 bg-blue-50 shadow-md' : 'border-gray-100 hover:border-gray-200'}`}
                 >
@@ -113,11 +133,10 @@ const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTit
 
             <button 
                 type="submit" 
-                disabled={isSubmitting}
                 className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg flex items-center justify-center gap-2"
             >
-                {isSubmitting ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
-                Envoyer la proposition
+                <Send size={20} />
+                Enregistrer la proposition simulée
             </button>
         </form>
       </div>

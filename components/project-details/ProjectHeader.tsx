@@ -1,65 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Rocket, MapPin, Share2, Heart } from 'lucide-react';
 import { Project } from '../../data/resourcesData';
+import { useProjectLikes } from '../../hooks/useProjectLikes';
 
 interface ProjectHeaderProps {
   project: Project;
 }
 
 const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
-  const [likes, setLikes] = useState(project.likes);
-  const [isLiked, setIsLiked] = useState(false);
-  const [animateHeart, setAnimateHeart] = useState(false);
-
-  useEffect(() => {
-    // 1. Vérifier si l'utilisateur a déjà liké ce projet
-    const userLikes = JSON.parse(localStorage.getItem('rise_user_likes') || '[]');
-    if (userLikes.includes(project.id)) {
-        setIsLiked(true);
-    }
-
-    // 2. Récupérer le nombre de likes à jour
-    const storedCounts = JSON.parse(localStorage.getItem('rise_project_likes_counts') || '{}');
-    if (storedCounts[project.id]) {
-        setLikes(storedCounts[project.id]);
-    }
-  }, [project.id]);
-
-  const handleLike = () => {
-      const newIsLiked = !isLiked;
-      const newLikes = newIsLiked ? likes + 1 : likes - 1;
-
-      setIsLiked(newIsLiked);
-      setLikes(newLikes);
-      setAnimateHeart(true);
-      setTimeout(() => setAnimateHeart(false), 300);
-
-      // Mise à jour du localStorage (User Likes)
-      const userLikes = JSON.parse(localStorage.getItem('rise_user_likes') || '[]');
-      let updatedUserLikes;
-      if (newIsLiked) {
-          updatedUserLikes = [...userLikes, project.id];
-          window.Toastify({
-            text: "Merci pour votre soutien !",
-            duration: 2000,
-            style: { background: "#ef4444" }
-          }).showToast();
-      } else {
-          updatedUserLikes = userLikes.filter((id: number) => id !== project.id);
+  const { liked: isLiked, count: likes, toggle } = useProjectLikes(project.id, project.likes);
+  const handleShare = async () => {
+      try {
+          if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
+          await navigator.clipboard.writeText(window.location.href);
+          if (window.Toastify) window.Toastify({ text: 'Lien copié. Les projets locaux ne sont pas partagés entre navigateurs.', style: { background: '#334155' } }).showToast();
+      } catch {
+          window.prompt('Copiez ce lien :', window.location.href);
       }
-      localStorage.setItem('rise_user_likes', JSON.stringify(updatedUserLikes));
-
-      // Mise à jour du localStorage (Global Counts)
-      const storedCounts = JSON.parse(localStorage.getItem('rise_project_likes_counts') || '{}');
-      storedCounts[project.id] = newLikes;
-      localStorage.setItem('rise_project_likes_counts', JSON.stringify(storedCounts));
-  };
-
-  const handleShare = () => {
-      window.Toastify({
-          text: "Lien copié dans le presse-papier !",
-          style: { background: "#334155" }
-      }).showToast();
   };
 
   return (
@@ -79,6 +36,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
                     </div>
                     <div>
                         <div className="flex flex-wrap items-center gap-3 mb-3">
+                            {project.isDemo && <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900">Exemple de démonstration</span>}
                             <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/10 border border-white/20 text-primary backdrop-blur-md">
                                 {project.category}
                             </span>
@@ -104,7 +62,8 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
                         <Share2 size={20} className="text-white" />
                     </button>
                     <button 
-                        onClick={handleLike}
+                        type="button" aria-pressed={isLiked} aria-label={isLiked ? 'Retirer ma réaction' : 'Aimer ce projet'}
+                        onClick={toggle}
                         className={`flex items-center gap-2 px-5 py-3 rounded-xl border backdrop-blur-md transition-all group ${
                             isLiked 
                             ? 'bg-red-500/20 border-red-500/50 text-red-400' 
@@ -113,7 +72,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
                     >
                          <Heart 
                             size={20} 
-                            className={`transition-transform duration-300 ${isLiked ? 'fill-current text-red-500' : 'group-hover:text-red-400'} ${animateHeart ? 'scale-125' : 'scale-100'}`} 
+                            className={`transition-transform duration-300 ${isLiked ? 'fill-current text-red-500' : 'group-hover:text-red-400'}`} 
                          />
                          <span className={`font-bold ${isLiked ? 'text-white' : ''}`}>{likes}</span>
                     </button>

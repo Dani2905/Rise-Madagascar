@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { FloatingInput } from '../../FloatingInput';
+import { madagascarToday } from '../../../utils/registration';
 
 interface StudentFieldsProps {
   formData: any;
@@ -10,10 +11,11 @@ interface StudentFieldsProps {
 const StudentFields: React.FC<StudentFieldsProps> = ({ formData, onChange }) => {
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
          <FloatingInput
             id="birthDate"
             type="date"
+            max={madagascarToday()}
             label="Date de naissance"
             value={formData.birthDate}
             onChange={onChange}
@@ -30,7 +32,7 @@ const StudentFields: React.FC<StudentFieldsProps> = ({ formData, onChange }) => 
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
          <FloatingInput
             id="school"
             type="text"

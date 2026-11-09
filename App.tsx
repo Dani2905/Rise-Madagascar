@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { MessagingProvider } from './context/MessagingContext';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -46,6 +47,7 @@ const App: React.FC = () => {
     <AuthProvider>
       <MessagingProvider>
         <Router>
+          <SubscriptionProvider>
           <ScrollToTop />
           <div className="flex flex-col min-h-screen font-sans text-gray-900 bg-gray-50">
             <Routes>
@@ -81,6 +83,7 @@ const App: React.FC = () => {
               <Route path="*" element={<MainLayout><Home /></MainLayout>} />
             </Routes>
           </div>
+          </SubscriptionProvider>
         </Router>
       </MessagingProvider>
     </AuthProvider>

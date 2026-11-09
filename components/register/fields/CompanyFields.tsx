@@ -10,7 +10,7 @@ interface CompanyFieldsProps {
 const CompanyFields: React.FC<CompanyFieldsProps> = ({ formData, onChange }) => {
   return (
     <>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FloatingInput
                 id="companyName"
                 type="text"
@@ -28,7 +28,7 @@ const CompanyFields: React.FC<CompanyFieldsProps> = ({ formData, onChange }) => 
             />
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Select Industry */}
             <div className="relative mb-6">
                 <select
@@ -80,7 +80,7 @@ const CompanyFields: React.FC<CompanyFieldsProps> = ({ formData, onChange }) => 
         </div>
 
         {/* Nom du contact Recruteur */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FloatingInput
                 id="firstName"
                 type="text"

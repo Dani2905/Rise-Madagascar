@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CheckCircle2, Heart, Share2, GraduationCap, Briefcase, Globe, ArrowRight, Lock, User, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, GraduationCap, Briefcase, Globe, ArrowRight, Lock, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
@@ -67,15 +67,6 @@ const JobSidebar: React.FC<JobSidebarProps> = ({ job, onApply }) => {
                 </div>
             )}
             
-            <div className="grid grid-cols-2 gap-3 mb-6">
-                <button className="py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm">
-                    <Heart size={18} /> Sauvegarder
-                </button>
-                <button className="py-2.5 rounded-xl border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 text-sm">
-                    <Share2 size={18} /> Partager
-                </button>
-            </div>
-
             <div className="bg-slate-50 rounded-xl p-4 space-y-4">
                 <div className="flex items-start gap-3">
                     <GraduationCap size={20} className="text-gray-400 mt-0.5" />
@@ -120,13 +111,9 @@ const JobSidebar: React.FC<JobSidebarProps> = ({ job, onApply }) => {
                 <div>
                     <p className="font-bold text-slate-900 flex items-center gap-2">
                         {job.company}
-                        {isIndividual && (
-                            <span title="Profil vérifié">
-                                <ShieldCheck size={14} className="text-green-500" />
-                            </span>
-                        )}
+
                     </p>
-                    {job.companyInfo.website && !isIndividual && (
+                    {job.companyInfo.website && job.companyInfo.website !== 'Non renseigné' && !isIndividual && (
                         <a href={job.companyInfo.website.startsWith('http') ? job.companyInfo.website : `https://${job.companyInfo.website}`} target="_blank" rel="noreferrer" className="text-xs text-primary font-bold hover:underline flex items-center gap-1">
                             {job.companyInfo.website.replace(/^https?:\/\//, '')} <ArrowRight size={10} />
                         </a>

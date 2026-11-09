@@ -2,14 +2,11 @@ import React from 'react';
 import { Zap, Target, Users, Rocket, ArrowRight, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { canPerformAction } from '../../utils/subscription';
 
-interface ProjectSubmissionFormProps {
-  isLoggedIn: boolean;
-}
-
-const ProjectSubmissionForm: React.FC<ProjectSubmissionFormProps> = ({ isLoggedIn }) => {
+const ProjectSubmissionForm: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isLoggedIn } = useAuth();
 
   const isRecruiter = user?.role === 'company' || user?.role === 'individual';
 
@@ -18,7 +15,7 @@ const ProjectSubmissionForm: React.FC<ProjectSubmissionFormProps> = ({ isLoggedI
           // Redirection vers le profil avec un paramètre d'action pour ouvrir le formulaire
           navigate('/profile?tab=projects&action=new');
       } else {
-          navigate('/register');
+          navigate('/register?type=student', { state: { returnTo: '/profile?tab=projects&action=new' } });
       }
   };
 
@@ -55,7 +52,7 @@ const ProjectSubmissionForm: React.FC<ProjectSubmissionFormProps> = ({ isLoggedI
                         <div>
                             <h4 className="font-bold text-slate-900 text-sm">Visibilité Ciblée</h4>
                             <p className="text-xs text-gray-500 leading-relaxed mt-1">
-                                {isRecruiter ? "Identifiez les talents proactifs avant leurs diplômes." : "Votre projet sera mis en avant auprès des incubateurs et investisseurs."}
+                                {isRecruiter ? "Identifiez les talents proactifs avant leurs diplômes." : "Votre projet pourra être consulté par les visiteurs de cet espace."}
                             </p>
                         </div>
                     </div>
@@ -68,7 +65,7 @@ const ProjectSubmissionForm: React.FC<ProjectSubmissionFormProps> = ({ isLoggedI
                             <div>
                                 <h4 className="font-bold text-slate-900 text-sm">Co-fondateurs</h4>
                                 <p className="text-xs text-gray-500 leading-relaxed mt-1">
-                                    Trouvez les compétences qui vous manquent (Dév, Marketing, Finance).
+                                    Indiquez les compétences recherchées pour faire avancer votre projet.
                                 </p>
                             </div>
                         </div>
@@ -81,7 +78,7 @@ const ProjectSubmissionForm: React.FC<ProjectSubmissionFormProps> = ({ isLoggedI
                         <div>
                             <h4 className="font-bold text-slate-900 text-sm">Mentorat</h4>
                             <p className="text-xs text-gray-500 leading-relaxed mt-1">
-                                {isRecruiter ? "Partagez votre expertise et aidez un jeune projet à décoller." : "Recevez des feedbacks et conseils d'experts pour passer de l'idée au MVP."}
+                                {isRecruiter ? "Partagez votre expertise et aidez un jeune projet à décoller." : "Indiquez si vous recherchez des conseils ou des collaborateurs."}
                             </p>
                         </div>
                     </div>
@@ -104,9 +101,12 @@ const ProjectSubmissionForm: React.FC<ProjectSubmissionFormProps> = ({ isLoggedI
                     </button>
                 )}
                 
+                {!isRecruiter && (!user || !canPerformAction(user, 'publishProject')) && (
+                    <p className="text-center text-xs text-gray-500 mt-4">Un abonnement étudiant actif est nécessaire pour publier un projet.</p>
+                )}
                 {!isLoggedIn && (
                     <p className="text-center text-xs text-gray-400 mt-4">
-                        Déjà membre ? <button onClick={() => navigate('/login')} className="text-slate-900 font-bold hover:underline">Se connecter</button>
+                        Déjà membre ? <button onClick={() => navigate('/login', { state: { returnTo: '/profile?tab=projects&action=new' } })} className="text-slate-900 font-bold hover:underline">Se connecter</button>
                     </p>
                 )}
             </div>

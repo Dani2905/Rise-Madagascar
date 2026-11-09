@@ -1,101 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { Filter, Grid, List } from 'lucide-react';
-import { FEATURED_PROJECTS } from '../../data/resourcesData';
+import React, { useEffect, useState } from 'react';
+import { Grid } from 'lucide-react';
+import { getPublicProjects } from '../../utils/projects';
 import ProjectCard from './ProjectCard';
 
-interface ProjectsFeedProps {
-  filterCategory: string;
-  setFilterCategory: (category: string) => void;
-}
-
+interface ProjectsFeedProps { filterCategory: string; setFilterCategory: (category: string) => void; }
 const ProjectsFeed: React.FC<ProjectsFeedProps> = ({ filterCategory, setFilterCategory }) => {
-  const [displayProjects, setDisplayProjects] = useState(FEATURED_PROJECTS);
-  const [availableCategories, setAvailableCategories] = useState<string[]>(['Tous']);
-
+  const [projects, setProjects] = useState(getPublicProjects);
+  const [visibleCount, setVisibleCount] = useState(6);
   useEffect(() => {
-      // 1. Charger les projets personnalisés depuis le LocalStorage (Source de vérité "Live")
-      const customProjects = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
-      
-      // 2. Fusionner avec les projets statiques (éviter doublons ID)
-      // On donne priorité aux Custom Projects (pour l'édition)
-      const staticProjectsFiltered = FEATURED_PROJECTS.filter(sp => !customProjects.some((cp: any) => cp.id.toString() === sp.id.toString()));
-      
-      // Le tableau final : Custom en premier (nouveautés), puis Mocks
-      const allProjects = [...customProjects, ...staticProjectsFiltered];
-      
-      setDisplayProjects(allProjects);
-
-      // 3. Extraire les catégories uniques dynamiquement
-      const uniqueCategories = Array.from(new Set(allProjects.map((p: any) => p.category))).filter(Boolean);
-      setAvailableCategories(['Tous', ...uniqueCategories]);
-
+    const refresh = () => setProjects(getPublicProjects());
+    window.addEventListener('focus', refresh);
+    window.addEventListener('storage', refresh);
+    return () => { window.removeEventListener('focus', refresh); window.removeEventListener('storage', refresh); };
   }, []);
-
-  const filteredProjects = displayProjects.filter(p => 
-      filterCategory === 'Tous' || p.category === filterCategory
-  );
-
-  return (
-    <div className="lg:col-span-8 space-y-6">
-        {/* Filters & Controls */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-            
-            {/* Dynamic Categories Scrollable List */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full sm:w-auto scrollbar-hide mask-fade-right">
-                {availableCategories.map(cat => (
-                    <button
-                        key={cat}
-                        onClick={() => setFilterCategory(cat)}
-                        className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all border ${
-                            filterCategory === cat 
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
-                            : 'bg-white text-gray-600 border-gray-200 hover:border-primary hover:text-slate-900'
-                        }`}
-                    >
-                        {cat}
-                    </button>
-                ))}
-            </div>
-
-            <div className="flex items-center gap-3 text-sm text-gray-500 shrink-0">
-                <span className="hidden md:inline font-medium">{filteredProjects.length} résultats</span>
-                <div className="h-4 w-px bg-gray-300 hidden md:block"></div>
-                <div className="flex items-center gap-1 cursor-pointer hover:text-slate-900">
-                    <Filter size={16} /> <span className="font-bold">Récent</span>
-                </div>
-            </div>
-        </div>
-
-        {/* Project Cards Grid */}
-        {filteredProjects.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-                {filteredProjects.map(project => (
-                    <ProjectCard key={project.id} project={project} />
-                ))}
-            </div>
-        ) : (
-            <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 border-dashed">
-                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 grayscale opacity-50">
-                    <Grid size={32} />
-                </div>
-                <h3 className="text-lg font-bold text-slate-900">Aucun projet trouvé</h3>
-                <p className="text-gray-500 mt-2 text-sm">Essayez de sélectionner une autre catégorie.</p>
-                <button 
-                    onClick={() => setFilterCategory('Tous')}
-                    className="mt-6 px-6 py-2 bg-white border border-gray-200 text-slate-700 font-bold rounded-xl hover:bg-gray-50 transition-colors text-sm"
-                >
-                    Réinitialiser les filtres
-                </button>
-            </div>
-        )}
-        
-        {filteredProjects.length > 6 && (
-            <button className="w-full py-4 text-sm font-bold text-gray-500 hover:text-slate-900 hover:bg-white rounded-xl transition-all border border-dashed border-gray-200 shadow-sm">
-                Charger plus de projets
-            </button>
-        )}
+  useEffect(() => setVisibleCount(6), [filterCategory]);
+  const categories = ['Tous', ...Array.from(new Set<string>(projects.map(p => p.category).filter(c => c && c !== 'Tous'))).sort((a, b) => a.localeCompare(b, 'fr'))];
+  if (filterCategory !== 'Tous' && !categories.includes(filterCategory)) categories.push(filterCategory);
+  const filtered = projects.filter(p => filterCategory === 'Tous' || p.category === filterCategory);
+  return <div className="lg:col-span-8 space-y-6">
+    <p className="text-xs text-slate-500">Version de démonstration : les projets publiés et les soutiens sont enregistrés dans ce navigateur. Les exemples fictifs sont signalés.</p>
+    <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+      <div className="flex items-center gap-2 overflow-x-auto pb-2 w-full" aria-label="Catégories de projets">
+        {categories.map(category => <button key={category} type="button" aria-pressed={filterCategory === category} onClick={() => setFilterCategory(category)} className={`px-4 py-2 rounded-full text-sm font-bold whitespace-nowrap border ${filterCategory === category ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-600 border-gray-200 hover:border-primary'}`}>{category}</button>)}
+      </div>
+      <span className="text-sm text-gray-500 whitespace-nowrap" aria-live="polite">{filtered.length} {filtered.length === 1 ? 'résultat' : 'résultats'}</span>
     </div>
-  );
+    {filtered.length ? <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{filtered.slice(0, visibleCount).map(project => <ProjectCard key={project.id} project={project} />)}</div> : <div className="text-center py-16 bg-white rounded-3xl border border-gray-100 border-dashed">
+      <Grid size={32} className="mx-auto text-gray-300 mb-4" /><h3 className="text-lg font-bold text-gray-900">Aucun projet trouvé</h3><p className="text-gray-500 mt-2 text-sm">Essayez une autre catégorie.</p><button type="button" onClick={() => setFilterCategory('Tous')} className="mt-6 px-6 py-2 border rounded-xl font-bold text-sm">Réinitialiser le filtre</button>
+    </div>}
+    {visibleCount < filtered.length && <div className="text-center"><p className="text-xs text-slate-500 mb-3">{Math.min(visibleCount, filtered.length)} projets affichés sur {filtered.length}</p><button type="button" onClick={() => setVisibleCount(n => n + 6)} className="w-full py-4 text-sm font-bold text-gray-600 hover:bg-white rounded-xl border border-dashed border-gray-200">Charger plus de projets</button></div>}
+  </div>;
 };
-
 export default ProjectsFeed;

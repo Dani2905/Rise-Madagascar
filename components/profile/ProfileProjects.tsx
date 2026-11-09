@@ -1,23 +1,31 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Rocket, Plus, Edit2, Trash2, Heart, Lightbulb, Eye, Handshake, Bell, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ProjectForm from '../dashboard/ProjectForm';
 import ProjectSupportsModal from './ProjectSupportsModal';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscription } from '../../context/SubscriptionContext';
 import { ProjectSupport } from '../../types';
+import { canPerformAction } from '../../utils/subscription';
 
 interface ProfileProjectsProps {
     projects?: any[];
     initialCreateMode?: boolean;
 }
 
-const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initialCreateMode = false }) => {
+const EMPTY_PROJECTS: any[] = [];
+
+const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJECTS, initialCreateMode = false }) => {
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
+  const { openSubscription } = useSubscription();
   const [localProjects, setLocalProjects] = useState(projects);
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingProject, setEditingProject] = useState<any>(null);
+  const [showSubscriptionNotice, setShowSubscriptionNotice] = useState(false);
+  const directCreateHandled = useRef(false);
+  const directCreatePending = useRef(false);
 
   // States pour les fonctionnalités avancées
   const [projectLikes, setProjectLikes] = useState<Record<string, number>>({});
@@ -31,11 +39,12 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
       setLocalProjects(projects);
 
       // 1. Charger les likes
-      const storedCounts = JSON.parse(localStorage.getItem('rise_project_likes_counts') || '{}');
-      setProjectLikes(storedCounts);
+      try { const counts = JSON.parse(localStorage.getItem('rise_project_likes_counts') || '{}'); setProjectLikes(counts && typeof counts === 'object' && !Array.isArray(counts) ? counts : {}); }
+      catch { setProjectLikes({}); }
 
       // 2. Charger les Supports (Propositions)
-      const allSupports = JSON.parse(localStorage.getItem('rise_project_supports') || '[]');
+      let allSupports: ProjectSupport[] = [];
+      try { const parsed = JSON.parse(localStorage.getItem('rise_project_supports') || '[]'); if (Array.isArray(parsed)) allSupports = parsed.filter(s => s && s.projectId != null); } catch { /* ne pas écraser des données illisibles */ }
       
       // Grouper par Project ID pour un accès rapide
       const mappedSupports: Record<string, ProjectSupport[]> = {};
@@ -50,18 +59,49 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
   }, [projects, isSupportsModalOpen]); // Re-fetch quand le modal se ferme pour mettre à jour les statuts
 
   useEffect(() => {
-      if (initialCreateMode) {
-          setView('form');
-          setEditingProject(null);
+      if (!initialCreateMode) {
+          directCreateHandled.current = false;
+          directCreatePending.current = false;
+          return;
       }
-  }, [initialCreateMode]);
+      if (!directCreateHandled.current) {
+          directCreateHandled.current = true;
+          if (canPerformAction(user, 'publishProject')) {
+              setEditingProject(null);
+              setView('form');
+              setShowSubscriptionNotice(false);
+          } else {
+              directCreatePending.current = true;
+              setShowSubscriptionNotice(true);
+              openSubscription();
+          }
+      } else if (directCreatePending.current && canPerformAction(user, 'publishProject')) {
+          directCreatePending.current = false;
+          setEditingProject(null);
+          setView('form');
+          setShowSubscriptionNotice(false);
+      }
+  }, [initialCreateMode, user, openSubscription]);
 
   const handleSave = (projectData: any) => {
+      if (!canPerformAction(user, 'publishProject')) {
+          setShowSubscriptionNotice(true);
+          openSubscription();
+          return;
+      }
       if (!user) return;
 
       let updatedList;
       let projectToSave;
-      const publicProjects = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
+      let publicProjects: any[];
+      try {
+          const parsed = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
+          if (!Array.isArray(parsed)) throw new Error('invalid projects');
+          publicProjects = parsed;
+      } catch {
+          if (window.Toastify) window.Toastify({ text: 'Les projets locaux sont illisibles ; la sauvegarde a été interrompue.', style: { background: '#ef4444' } }).showToast();
+          return;
+      }
 
       const commonMetadata = {
           student: `${user.firstName} ${user.lastName}`,
@@ -75,51 +115,85 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
       };
 
       if (editingProject) {
+          if (editingProject.ownerId != null && String(editingProject.ownerId) !== String(user.id)) {
+              if (window.Toastify) window.Toastify({ text: 'Ce projet appartient à un autre compte.', style: { background: '#ef4444' } }).showToast();
+              return;
+          }
           projectToSave = { 
               ...editingProject, 
               ...projectData, 
+              ownerId: user.id,
+              studentEmail: user.email,
               student: commonMetadata.student,
               school: commonMetadata.school
           };
           updatedList = localProjects.map(p => p.id === editingProject.id ? projectToSave : p);
           
-          const existingPublicIndex = publicProjects.findIndex((p: any) => p.id === editingProject.id);
+          const existingPublicIndex = publicProjects.findIndex((p: any) => p?.id != null && String(p.id) === String(editingProject.id));
           if (existingPublicIndex >= 0) {
+              const existing = publicProjects[existingPublicIndex];
+              if (existing.ownerId != null && String(existing.ownerId) !== String(user.id)) {
+                  if (window.Toastify) window.Toastify({ text: 'Ce projet appartient à un autre compte.', style: { background: '#ef4444' } }).showToast();
+                  return;
+              }
               publicProjects[existingPublicIndex] = projectToSave;
+          } else {
+              publicProjects.unshift({ ...projectToSave, ownerId: user.id, studentEmail: user.email });
           }
-          window.Toastify({ text: "Projet mis à jour !", style: { background: "#2563EB" } }).showToast();
+
       } else {
           const newId = Date.now();
-          projectToSave = { id: newId, ...commonMetadata, ...projectData };
+          projectToSave = { id: newId, ...commonMetadata, ...projectData, createdAt: new Date().toISOString() };
           updatedList = [projectToSave, ...localProjects];
           publicProjects.unshift(projectToSave);
-          window.Toastify({ text: "Projet publié !", style: { background: "#10B981" } }).showToast();
+
       }
 
+      try { localStorage.setItem('rise_custom_projects', JSON.stringify(publicProjects)); }
+      catch {
+          if (window.Toastify) window.Toastify({ text: 'Impossible de sauvegarder le projet dans ce navigateur.', style: { background: '#ef4444' } }).showToast();
+          return;
+      }
       setLocalProjects(updatedList);
       updateUser({ myProjects: updatedList });
-      localStorage.setItem('rise_custom_projects', JSON.stringify(publicProjects));
+      if (window.Toastify) window.Toastify({ text: editingProject ? 'Projet mis à jour dans ce navigateur.' : 'Projet publié dans ce navigateur.', style: { background: '#2563eb' } }).showToast();
       setView('list');
       setEditingProject(null);
       navigate('/profile?tab=projects');
   };
 
-  const handleEdit = (project: any) => {
+  const openForm = (project: any = null) => {
+      if (!canPerformAction(user, 'publishProject')) {
+          setShowSubscriptionNotice(true);
+          openSubscription();
+          return;
+      }
+      setShowSubscriptionNotice(false);
       setEditingProject(project);
       setView('form');
   };
 
+  const handleEdit = (project: any) => openForm(project);
+  const subscriptionNotice = showSubscriptionNotice && (
+      <div role="status" className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-sm text-amber-950 mb-5">
+          Un abonnement étudiant actif est nécessaire pour publier ou modifier un projet. Vous pouvez toujours consulter et supprimer vos projets.
+          <button type="button" onClick={openSubscription} className="ml-2 font-bold underline underline-offset-2">Choisir mon abonnement</button>
+      </div>
+  );
+
   const handleDelete = (id: number) => {
-      if (window.confirm("Supprimer ce projet ?")) {
-          const updatedList = localProjects.filter(p => p.id !== id);
+      if (!user || !window.confirm("Supprimer ce projet ?")) return;
+      try {
+          const parsed = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
+          if (!Array.isArray(parsed)) throw new Error('invalid projects');
+          const updatedPublic = parsed.filter((p: any) => String(p?.id) !== String(id) || (p?.ownerId != null && String(p.ownerId) !== String(user.id)));
+          const updatedList = localProjects.filter(p => String(p.id) !== String(id));
+          localStorage.setItem('rise_custom_projects', JSON.stringify(updatedPublic));
           setLocalProjects(updatedList);
           updateUser({ myProjects: updatedList });
-
-          const publicProjects = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
-          const updatedPublic = publicProjects.filter((p: any) => p.id !== id);
-          localStorage.setItem('rise_custom_projects', JSON.stringify(updatedPublic));
-
-          window.Toastify({ text: "Projet supprimé.", style: { background: "#64748b" } }).showToast();
+          if (window.Toastify) window.Toastify({ text: "Projet supprimé.", style: { background: "#64748b" } }).showToast();
+      } catch {
+          if (window.Toastify) window.Toastify({ text: 'Impossible de supprimer le projet : données locales illisibles.', style: { background: '#ef4444' } }).showToast();
       }
   };
 
@@ -132,6 +206,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
   if (view === 'form') {
       return (
           <div className="animate-fade-in">
+              {subscriptionNotice}
               <ProjectForm initialData={editingProject} onSave={handleSave} onCancel={() => { setView('list'); setEditingProject(null); navigate('/profile?tab=projects'); }} />
           </div>
       );
@@ -140,7 +215,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
   // --- RENDER LIST ---
   return (
     <div className="space-y-6 animate-fade-in delay-100">
-        
+        {subscriptionNotice}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm gap-4">
             <div>
                 <h3 className="font-heading font-bold text-lg text-slate-900 flex items-center gap-2">
@@ -149,7 +224,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
                 <p className="text-sm text-gray-500 mt-1">Gérez votre portfolio d'innovation.</p>
             </div>
             <button 
-                onClick={() => { setEditingProject(null); setView('form'); }}
+                onClick={() => openForm()}
                 className="px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-lg w-full sm:w-auto justify-center"
             >
                 <Plus size={16} /> Nouveau Projet
@@ -171,7 +246,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
                         {hasSupports && (
                             <div className="bg-yellow-50 px-6 py-2 flex justify-between items-center border-b border-yellow-100 cursor-pointer hover:bg-yellow-100 transition-colors" onClick={() => openSupportsModal(project)}>
                                 <span className="text-xs font-bold text-yellow-800 flex items-center gap-1">
-                                    <Handshake size={12} /> {supports.length} investisseur(s) intéressé(s)
+                                    <Handshake size={12} /> {supports.length} proposition(s) de soutien
                                 </span>
                                 {pendingSupports > 0 && (
                                     <span className="flex items-center gap-1 bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
@@ -254,7 +329,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = [], initia
                     Partagez vos idées innovantes avec la communauté pour trouver des financements, des mentors ou des co-fondateurs.
                 </p>
                 <button 
-                    onClick={() => { setEditingProject(null); setView('form'); }}
+                    onClick={() => openForm()}
                     className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg"
                 >
                     Publier mon premier projet

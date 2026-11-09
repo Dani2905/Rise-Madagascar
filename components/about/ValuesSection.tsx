@@ -12,10 +12,10 @@ const ValuesSection: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                   {[
-                      { icon: ShieldCheck, title: "Confiance", desc: "Chaque offre est modérée manuellement. Chaque profil étudiant est vérifié pour garantir la sécurité des particuliers." },
-                      { icon: TrendingUp, title: "Méritocratie", desc: "Peu importe votre origine ou vos relations. Seules vos compétences et votre motivation comptent sur Rise." },
-                      { icon: Heart, title: "Entraide", desc: "Nous encourageons le mentorat. Les anciens aident les nouveaux via la section Communauté." },
-                      { icon: Target, title: "Impact Local", desc: "100% Vita Malagasy. Une solution pensée par des jeunes malgaches, pour les jeunes malgaches." }
+                      { icon: ShieldCheck, title: "Prudence", desc: "Prenez le temps de vérifier les informations avant toute collaboration et évitez de partager des données sensibles." },
+                      { icon: TrendingUp, title: "Opportunités", desc: "Aider les étudiants à présenter leurs compétences et à découvrir des possibilités adaptées à leur parcours." },
+                      { icon: Heart, title: "Entraide", desc: "Encourager les échanges, les collaborations et le soutien aux projets étudiants." },
+                      { icon: Target, title: "Ancrage local", desc: "Mettre en relation des étudiants et des recruteurs autour de besoins à Madagascar." }
                   ].map((val, idx) => (
                       <div key={idx} className="bg-white p-6 rounded-2xl border border-gray-100 hover:shadow-xl hover:border-primary/20 transition-all duration-300 group">
                           <div className="w-12 h-12 bg-slate-50 rounded-lg flex items-center justify-center mb-4 text-slate-400 group-hover:bg-primary group-hover:text-slate-900 transition-colors">

@@ -8,16 +8,18 @@ interface LoginFormProps {
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleSubmit: (e: React.FormEvent) => void;
   isSubmitting: boolean;
+  error: string;
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ formData, handleInputChange, handleSubmit, isSubmitting }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ formData, handleInputChange, handleSubmit, isSubmitting, error }) => {
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
         <div className="space-y-2">
             <FloatingInput
                 id="email"
                 type="email"
-                label="Email"
+                autoComplete="username"
+                label="E-mail"
                 value={formData.email}
                 onChange={handleInputChange}
                 required
@@ -27,25 +29,18 @@ const LoginForm: React.FC<LoginFormProps> = ({ formData, handleInputChange, hand
                 <FloatingInput
                     id="password"
                     type="password"
+                    autoComplete="current-password"
                     label="Mot de passe"
                     value={formData.password}
                     onChange={handleInputChange}
                     required
                 />
-                <div className="flex justify-end mt-1">
-                     <a href="#" className="text-xs font-bold text-primary hover:text-yellow-600 transition-colors">
-                        Mot de passe oublié ?
-                    </a>
-                </div>
+                <p className="text-xs text-slate-500">La récupération de mot de passe n’est pas disponible dans cette version locale.</p>
             </div>
         </div>
 
-        <div className="flex items-center text-sm mb-6">
-            <label className="flex items-center cursor-pointer group">
-                <input type="checkbox" className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer" />
-                <span className="ml-2 text-gray-600 group-hover:text-gray-900 transition-colors">Se souvenir de moi</span>
-            </label>
-        </div>
+        {error && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>}
+        <p className="text-xs text-slate-500">La session reste ouverte dans ce navigateur jusqu’à votre déconnexion.</p>
 
         <button
             type="submit"

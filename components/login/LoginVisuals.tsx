@@ -1,36 +1,14 @@
-
 import React from 'react';
-import { Quote } from 'lucide-react';
-
-const LoginVisuals: React.FC = () => {
-  return (
-    <div className="hidden lg:block relative w-0 flex-1 bg-slate-900 overflow-hidden">
-         <img 
-            className="absolute inset-0 h-full w-full object-cover opacity-80" 
-            src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop" 
-            alt="Students collaborating" 
-         />
-         {/* Overlay Gradient */}
-         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-primary/10 mix-blend-multiply"></div>
-         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-90"></div>
-
-         <div className="absolute bottom-0 left-0 p-16 text-white z-10 max-w-2xl">
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center mb-6 text-primary border border-white/20">
-                <Quote size={20} className="fill-current" />
-            </div>
-            <blockquote className="text-2xl font-heading font-bold leading-relaxed mb-6">
-                "Rise m'a permis de décrocher mon premier contrat freelance avec une entreprise internationale, tout en poursuivant mes études à Tana."
-            </blockquote>
-            <div className="flex items-center gap-4">
-                <img src="https://ui-avatars.com/api/?name=Hery+Rajaonarivelo&background=random" alt="User" className="w-12 h-12 rounded-full border-2 border-primary" />
-                <div>
-                    <div className="font-bold text-white">Hery Rajaonarivelo</div>
-                    <div className="text-slate-400 text-sm">Développeur Fullstack (Freelance)</div>
-                </div>
-            </div>
-         </div>
-      </div>
-  );
-};
-
+import { GraduationCap, Building2, Lightbulb } from 'lucide-react';
+const LoginVisuals: React.FC = () => (
+  <div className="hidden lg:flex relative flex-1 bg-slate-900 overflow-hidden items-end">
+    <img className="absolute inset-0 h-full w-full object-cover opacity-40" src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=2671&auto=format&fit=crop" alt="" />
+    <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent" />
+    <div className="relative p-16 text-white max-w-2xl">
+      <p className="text-primary text-sm font-bold uppercase tracking-widest mb-4">Rise Madagascar</p>
+      <h2 className="text-3xl font-heading font-bold mb-5">Des opportunités et des projets pour les étudiants.</h2>
+      <ul className="space-y-3 text-slate-200 text-sm"><li className="flex gap-3"><GraduationCap size={20} /> Explorer les offres étudiantes</li><li className="flex gap-3"><Lightbulb size={20} /> Présenter un projet étudiant</li><li className="flex gap-3"><Building2 size={20} /> Découvrir entreprises et particuliers</li></ul>
+    </div>
+  </div>
+);
 export default LoginVisuals;

@@ -1,35 +1,28 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
-import { FEATURED_PROJECTS } from '../data/resourcesData';
+import { getPublicProjects } from '../utils/projects';
 import ProjectHeader from '../components/project-details/ProjectHeader';
 import ProjectContent from '../components/project-details/ProjectContent';
 import ProjectSidebar from '../components/project-details/ProjectSidebar';
 
 const ProjectDetails: React.FC = () => {
   const { id } = useParams();
+  const location = useLocation();
+  const returnPath = typeof location.state?.fromResources === 'string' && /^\/resources(?:\?|$)/.test(location.state.fromResources) ? location.state.fromResources : '/resources';
   const [project, setProject] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     window.scrollTo(0, 0);
-    
-    // 1. Rechercher dans les données statiques (Mock)
-    let foundProject = FEATURED_PROJECTS.find(p => p.id === Number(id));
-
-    // 2. Si pas trouvé, rechercher dans les données dynamiques (LocalStorage)
-    if (!foundProject) {
-        const customProjects = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
-        foundProject = customProjects.find((p: any) => p.id === Number(id));
-    }
-
-    // 3. Cas particulier : Les projets du Mock User (Hery) qui ont des ID 1 et 2 dans le code mais peuvent être édités.
-    // Si on a un custom project qui a le même ID, il prend la priorité (version éditée)
-    const customProjects = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
-    const overrideProject = customProjects.find((p: any) => p.id === Number(id));
-    
-    setProject(overrideProject || foundProject);
-
+    const refresh = () => { setProject(getPublicProjects().find(item => String(item.id) === id) || null); setIsLoading(false); };
+    refresh();
+    window.addEventListener('storage', refresh);
+    window.addEventListener('focus', refresh);
+    return () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); };
   }, [id]);
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-slate-500">Chargement du projet…</div>;
 
   if (!project) {
     return (
@@ -39,7 +32,7 @@ const ProjectDetails: React.FC = () => {
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Projet introuvable</h1>
             <p className="text-gray-500 mb-8">Le projet que vous cherchez n'existe pas ou a été supprimé.</p>
-            <Link to="/resources" className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold">
+            <Link to={returnPath} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold">
                 Retour aux ressources
             </Link>
         </div>
@@ -52,11 +45,12 @@ const ProjectDetails: React.FC = () => {
         
         {/* Breadcrumb */}
         <div className="mb-6">
-            <Link to="/resources" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
+            <Link to={returnPath} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
                 <ArrowLeft size={16} className="mr-2" /> Retour aux projets
             </Link>
         </div>
 
+        {project.isDemo && <p className="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">Projet fictif présenté à titre d’exemple. Il ne correspond pas à une demande de soutien réelle.</p>}
         <ProjectHeader project={project} />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

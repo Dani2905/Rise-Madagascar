@@ -1,3 +1,5 @@
+import SubscriptionCard from '../subscription/SubscriptionCard';
+import PasswordCard from '../account/PasswordCard';
 
 import React, { useState, useRef } from 'react';
 import { Save, Loader2, Building2, User, Bell, Lock, Camera, Gift, Plus, X, Briefcase, Users as UsersIcon, Star } from 'lucide-react';
@@ -128,48 +130,10 @@ const CompanySettings: React.FC<CompanySettingsProps> = ({ data, onUpdate }) => 
   };
 
   return (
+    <div className="space-y-6">
     <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
       
-      {/* Subscription Section */}
-      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm relative overflow-hidden">
-          {data?.hasSubscription && (
-              <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-bl-full -z-10" />
-          )}
-          <h3 className="font-heading font-black text-xl text-slate-900 mb-6 flex items-center gap-3 tracking-tight">
-              <div className={`p-2 rounded-xl ${data?.hasSubscription ? 'bg-green-50 text-green-600' : 'bg-primary/10 text-primary'}`}>
-                  <Star size={20} />
-              </div>
-              Abonnement Premium
-          </h3>
-          
-          {data?.hasSubscription ? (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                      <h4 className="font-bold text-green-900 text-lg">Abonnement Actif</h4>
-                      <p className="text-green-700 text-sm mt-1">Vous bénéficiez de toutes les fonctionnalités premium (publications illimitées).</p>
-                      <button 
-                          onClick={(e) => { e.preventDefault(); onUpdate({ hasSubscription: false }); }}
-                          className="mt-3 text-red-600 font-bold text-sm hover:underline"
-                      >
-                          Résilier l'abonnement
-                      </button>
-                  </div>
-                  <span className="px-4 py-2 bg-white text-green-700 font-bold text-sm rounded-lg border border-green-200 shrink-0">
-                      Renouvellement auto
-                  </span>
-              </div>
-          ) : (
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div>
-                      <h4 className="font-bold text-slate-900 text-lg">Compte Gratuit</h4>
-                      <p className="text-gray-600 text-sm mt-1">Passez à la version premium pour pouvoir publier des annonces.</p>
-                  </div>
-                  <Link to="/pricing" className="px-6 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-colors shrink-0 shadow-lg shadow-slate-900/10">
-                      Découvrir Premium
-                  </Link>
-              </div>
-          )}
-      </div>
+      <SubscriptionCard data={data} onUpdate={onUpdate} />
 
       {/* 1. Informations Entreprise */}
       <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
@@ -372,9 +336,7 @@ const CompanySettings: React.FC<CompanySettingsProps> = ({ data, onUpdate }) => 
                 disabled
                 className="bg-gray-50 text-gray-500"
             />
-            <div className="flex items-center px-4 py-3 bg-gray-50 rounded-xl border border-gray-100 text-gray-500 text-sm">
-                <Lock size={16} className="mr-2" /> Mot de passe <span className="ml-auto text-primary font-bold cursor-pointer hover:underline">Modifier</span>
-            </div>
+
         </div>
       </div>
 
@@ -423,6 +385,8 @@ const CompanySettings: React.FC<CompanySettingsProps> = ({ data, onUpdate }) => 
       </div>
 
     </form>
+    <PasswordCard />
+    </div>
   );
 };
 

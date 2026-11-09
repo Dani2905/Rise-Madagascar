@@ -23,7 +23,7 @@ const ProfessionalContactFields: React.FC<ProfessionalContactFieldsProps> = ({ a
         />
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FloatingInput
             id="phone"
             type="tel"

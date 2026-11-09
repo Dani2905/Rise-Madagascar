@@ -13,8 +13,9 @@ const AboutCTA: React.FC = () => {
               <Award size={48} className="mx-auto text-primary mb-6" />
               <h2 className="text-4xl font-heading font-bold text-slate-900 mb-6">Rejoignez le mouvement</h2>
               <p className="text-xl text-gray-500 mb-10">
-                  Que vous soyez étudiant, recruteur ou simple particulier, vous avez votre place ici.
+                  Étudiants, entreprises et particuliers : découvrez les possibilités offertes par Rise.
               </p>
+              <p className="text-sm text-slate-500 max-w-2xl mx-auto mb-8 leading-relaxed">La consultation est gratuite ; les détails des offres nécessitent un compte. Cette version est une démonstration : les données restent dans ce navigateur et l’activation de l’abonnement est simulée, sans paiement réel ni contrôle serveur.</p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   {!isLoggedIn ? (
                       <button onClick={() => navigate('/register')} className="px-8 py-4 bg-primary text-slate-900 rounded-xl font-bold text-lg hover:bg-yellow-400 transition-all shadow-lg shadow-primary/20 hover:-translate-y-1">

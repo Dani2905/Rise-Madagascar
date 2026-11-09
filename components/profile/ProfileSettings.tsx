@@ -1,91 +1,22 @@
+import SubscriptionCard from '../subscription/SubscriptionCard';
+import PasswordCard from '../account/PasswordCard';
 import React, { useState } from 'react';
-import { Lock, Bell, Eye, Trash2, Star } from 'lucide-react';
-import { FloatingInput } from '../FloatingInput';
+import { Bell, Eye, Trash2, Star } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 
 const ProfileSettings: React.FC = () => {
   const { user, updateUser } = useAuth();
-  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [notifications, setNotifications] = useState({ jobs: true, apps: true, news: false });
   const [isPublic, setIsPublic] = useState(true);
 
-  const handlePasswordChange = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwords.new !== passwords.confirm) {
-       window.Toastify({ text: "Les mots de passe ne correspondent pas", style: { background: "#ef4444" } }).showToast();
-       return;
-    }
-    // Simulation d'appel API
-    window.Toastify({ text: "Mot de passe mis à jour avec succès !", style: { background: "linear-gradient(to right, #10B981, #059669)" } }).showToast();
-    setPasswords({ current: '', new: '', confirm: '' });
-  };
 
   return (
     <div className="space-y-6 animate-fade-in delay-100">
         
-        {/* Subscription Section */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm relative overflow-hidden">
-            {user?.hasSubscription && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/10 rounded-bl-full -z-10" />
-            )}
-            <h3 className="font-heading font-bold text-lg text-slate-900 mb-6 flex items-center gap-2">
-                <Star className={user?.hasSubscription ? "text-green-500" : "text-primary"} size={20} /> 
-                Abonnement Premium
-            </h3>
-            
-            {user?.hasSubscription ? (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                        <h4 className="font-bold text-green-900 text-lg">Abonnement Actif</h4>
-                        <p className="text-green-700 text-sm mt-1">Vous bénéficiez de toutes les fonctionnalités premium (candidatures illimitées).</p>
-                        <button 
-                            onClick={() => updateUser({ hasSubscription: false })}
-                            className="mt-3 text-red-600 font-bold text-sm hover:underline"
-                        >
-                            Résilier l'abonnement
-                        </button>
-                    </div>
-                    <span className="px-4 py-2 bg-white text-green-700 font-bold text-sm rounded-lg border border-green-200 shrink-0">
-                        Renouvellement auto
-                    </span>
-                </div>
-            ) : (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                    <div>
-                        <h4 className="font-bold text-slate-900 text-lg">Compte Gratuit</h4>
-                        <p className="text-gray-600 text-sm mt-1">Passez à la version premium pour pouvoir postuler aux offres.</p>
-                    </div>
-                    <Link to="/pricing" className="px-6 py-3 bg-slate-900 text-white font-bold text-sm rounded-xl hover:bg-slate-800 transition-colors shrink-0 shadow-lg shadow-slate-900/10">
-                        Découvrir Premium
-                    </Link>
-                </div>
-            )}
-        </div>
+        <SubscriptionCard data={user} onUpdate={updateUser} />
 
-        {/* Password Section */}
-        <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-            <h3 className="font-heading font-bold text-lg text-slate-900 mb-6 flex items-center gap-2">
-                <Lock className="text-primary" size={20} /> Sécurité
-            </h3>
-            <form onSubmit={handlePasswordChange} className="max-w-md space-y-2">
-                <FloatingInput 
-                    id="current" type="password" label="Mot de passe actuel" required
-                    value={passwords.current} onChange={e => setPasswords({...passwords, current: e.target.value})} 
-                />
-                <FloatingInput 
-                    id="new" type="password" label="Nouveau mot de passe" required
-                    value={passwords.new} onChange={e => setPasswords({...passwords, new: e.target.value})} 
-                />
-                <FloatingInput 
-                    id="confirm" type="password" label="Confirmer le nouveau mot de passe" required
-                    value={passwords.confirm} onChange={e => setPasswords({...passwords, confirm: e.target.value})} 
-                />
-                <button type="submit" className="mt-4 px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20">
-                    Mettre à jour le mot de passe
-                </button>
-            </form>
-        </div>
+        <PasswordCard />
 
         {/* Notifications & Privacy Grid */}
         <div className="grid md:grid-cols-2 gap-6">

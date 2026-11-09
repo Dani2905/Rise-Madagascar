@@ -1,36 +1,60 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_JOBS } from '../../data/jobsData';
 import { ALL_COMPANIES } from '../../data/companiesData';
+import { useAuth } from '../../context/AuthContext';
 
 const StatsSection: React.FC = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
-      jobs: "500+",
-      students: "2k+",
-      companies: "150",
-      free: "100%"
+    jobs: "548+",
+    students: "2.0k+",
+    companies: "148",
+    free: "100%"
   });
 
   useEffect(() => {
-      // 1. Calculer les Jobs
-      const customJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-      const totalJobs = MOCK_JOBS.length + customJobs.length + 542; // +542 base fictive pour l'effet "gros volume"
+    let customJobs: any[] = [];
+    let dbUsers: any[] = [];
 
-      // 2. Calculer les Entreprises
-      const dbUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
-      const registeredCompanies = dbUsers.filter((u: any) => u.role === 'company').length;
-      const totalCompanies = ALL_COMPANIES.length + registeredCompanies + 140; // +140 base fictive
+    try {
+      const parsedJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
+      customJobs = Array.isArray(parsedJobs) ? parsedJobs : [];
+    } catch (error) {
+      console.error("Erreur lecture offres stats", error);
+      customJobs = [];
+    }
 
-      // 3. Calculer les étudiants (fictif + dynamiques)
-      const registeredStudents = dbUsers.filter((u: any) => u.role === 'student').length;
-      const totalStudents = 2000 + registeredStudents;
+    try {
+      const parsedUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
+      dbUsers = Array.isArray(parsedUsers) ? parsedUsers : [];
+    } catch (error) {
+      console.error("Erreur lecture utilisateurs stats", error);
+      dbUsers = [];
+    }
 
-      setStats({
-          jobs: `${totalJobs}+`,
-          students: `${(totalStudents / 1000).toFixed(1)}k+`,
-          companies: `${totalCompanies}`,
-          free: "100%"
-      });
-  }, []);
+    // 1. Calculer les Jobs actifs (dédupliqués par ID)
+    const activeCustomJobs = customJobs.filter((j: any) => j && (!j.status || j.status === 'Actif'));
+    const customJobIds = new Set(activeCustomJobs.map((j: any) => j.id?.toString()));
+    const remainingMockJobs = MOCK_JOBS.filter(m => !customJobIds.has(m.id.toString()));
+    const totalJobs = remainingMockJobs.length + activeCustomJobs.length + 542;
+
+    // 2. Calculer les Entreprises (dédupliquées par ID avec ALL_COMPANIES)
+    const dbCompanies = dbUsers.filter((u: any) => u && u.role === 'company');
+    const dbCompanyIds = new Set(dbCompanies.map((u: any) => u.id?.toString()));
+    const remainingMockCompanies = ALL_COMPANIES.filter(c => !dbCompanyIds.has(c.id.toString()));
+    const totalCompanies = remainingMockCompanies.length + dbCompanies.length + 140;
+
+    // 3. Calculer les étudiants (fictif + dynamiques)
+    const registeredStudents = dbUsers.filter((u: any) => u && u.role === 'student').length;
+    const totalStudents = 2000 + registeredStudents;
+
+    setStats({
+      jobs: `${totalJobs}+`,
+      students: `${(totalStudents / 1000).toFixed(1)}k+`,
+      companies: `${totalCompanies}`,
+      free: "100%"
+    });
+  }, [user]);
 
   return (
     <section className="py-20 bg-slate-900 text-white relative overflow-hidden">

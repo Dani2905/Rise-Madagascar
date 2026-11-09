@@ -1,6 +1,7 @@
 import React from 'react';
 import { Users, Building2, User, Search, ArrowRight, Briefcase } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface CompaniesHeroProps {
   activeTab: 'companies' | 'individuals';
@@ -22,6 +23,10 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
   availableSectors
 }) => {
   const { isLoggedIn, user } = useAuth();
+  const navigate = useNavigate();
+  const registerPath = `/register?type=${activeTab === 'companies' ? 'company' : 'individual'}`;
+  const matchingRole = activeTab === 'companies' ? 'company' : 'individual';
+  const publish = () => navigate(user ? '/dashboard?tab=post-job' : registerPath);
 
   return (
     <section className="bg-white border-b border-gray-200 pt-16 pb-16">
@@ -47,6 +52,7 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
                     {/* Toggle Switch */}
                     <div className="flex bg-slate-100 p-1 rounded-xl max-w-md">
                         <button 
+                            type="button" aria-pressed={activeTab === 'companies'}
                             onClick={() => setActiveTab('companies')}
                             className={`flex-1 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                                 activeTab === 'companies' 
@@ -57,6 +63,7 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
                             <Building2 size={16} /> Entreprises
                         </button>
                         <button 
+                            type="button" aria-pressed={activeTab === 'individuals'}
                             onClick={() => setActiveTab('individuals')}
                             className={`flex-1 py-3 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
                                 activeTab === 'individuals' 
@@ -72,8 +79,9 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
                     <div className="bg-white p-2 rounded-2xl shadow-lg border border-gray-100 flex items-center transform transition-all focus-within:ring-2 focus-within:ring-primary/50">
                         <Search className="ml-4 text-gray-400 w-6 h-6 shrink-0" />
                         <input
-                            type="text"
-                            placeholder={activeTab === 'companies' ? "Rechercher (ex: Telma, Banque...)" : "Rechercher (ex: Soutien scolaire, Aide...)"}
+                            type="search"
+                            aria-label={activeTab === 'companies' ? 'Rechercher une entreprise' : 'Rechercher un particulier'}
+                            placeholder={activeTab === 'companies' ? "Rechercher une entreprise ou un secteur..." : "Rechercher (ex: Soutien scolaire, Aide...)"}
                             className="w-full p-3 text-gray-800 bg-transparent text-base placeholder-gray-400 focus:outline-none"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -86,6 +94,7 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
                             {availableSectors.map(sector => (
                                 <button
                                     key={sector}
+                                    type="button" aria-pressed={selectedSector === sector}
                                     onClick={() => setSelectedSector(sector)}
                                     className={`px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
                                         selectedSector === sector 
@@ -114,31 +123,30 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
                             </h2>
                             <p className="text-slate-400 mb-8 text-sm leading-relaxed">
                                 {activeTab === 'companies' 
-                                    ? "Rejoignez l'écosystème Rise pour recruter les meilleurs talents étudiants de Madagascar. Diffusion d'offres illimitée."
-                                    : "Trouvez un étudiant de confiance pour du soutien scolaire, du jardinage, de l'aide informatique ou un déménagement."
+                                    ? "Rejoignez l'écosystème Rise et publiez vos offres pour les étudiants de Madagascar."
+                                    : "Présentez votre besoin pour recevoir des candidatures d'étudiants."
                                 }
                             </p>
                             <div className="flex flex-col gap-3">
-                                {user?.role !== 'student' && (
-                                    <button className="w-full py-3.5 bg-primary text-slate-900 rounded-xl font-bold hover:bg-yellow-400 transition-colors shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
-                                        Publier une offre
+                                {(!user || user.role === matchingRole) && (
+                                    <button type="button" onClick={publish} className="w-full py-3.5 bg-primary text-slate-900 rounded-xl font-bold hover:bg-yellow-400 transition-colors shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                                        {activeTab === 'companies' ? 'Publier une offre' : 'Déposer une annonce'}
                                         <ArrowRight size={18} />
                                     </button>
                                 )}
                                 {!isLoggedIn && (
-                                    <button className="w-full py-3.5 bg-transparent border border-slate-700 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors">
+                                    <button type="button" onClick={() => navigate(registerPath)} className="w-full py-3.5 bg-transparent border border-slate-700 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors">
                                         {activeTab === 'companies' ? "Créer un compte Recruteur" : "Créer un compte Particulier"}
                                     </button>
                                 )}
+                                {user && user.role !== 'student' && user.role !== matchingRole && <p className="text-center text-xs text-slate-400">Votre compte est un compte {user.role === 'company' ? 'entreprise' : 'particulier'}. Retrouvez vos annonces dans votre espace.</p>}
                                 {user?.role === 'student' && (
                                     <div className="w-full py-3 text-center bg-white/5 rounded-xl border border-white/10 text-slate-400 text-xs">
                                         Connecté en tant qu'étudiant
                                     </div>
                                 )}
                             </div>
-                            <p className="text-center text-xs text-slate-500 mt-4">
-                                {activeTab === 'companies' ? "Gratuit pour les startups < 2 ans" : "100% Gratuit pour les particuliers"}
-                            </p>
+
                         </div>
                     </div>
                 </div>

@@ -1,14 +1,18 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Lock, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface LoginWallProps {
   jobTitle: string;
   companyName: string;
+  backTo: string;
+  backState?: { fromDirectory: string };
 }
 
-const LoginWall: React.FC<LoginWallProps> = ({ jobTitle, companyName }) => {
+const LoginWall: React.FC<LoginWallProps> = ({ jobTitle, companyName, backTo, backState }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnState = { returnTo: `${location.pathname}${location.search}`, returnState: location.state };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
@@ -31,7 +35,7 @@ const LoginWall: React.FC<LoginWallProps> = ({ jobTitle, companyName }) => {
         
         <div className="space-y-4">
             <button 
-                onClick={() => navigate('/login')} 
+                onClick={() => navigate('/login', { state: returnState })} 
                 className="w-full py-4 bg-primary text-slate-900 font-bold text-lg rounded-xl hover:bg-yellow-400 transition-all shadow-lg shadow-primary/20 transform hover:-translate-y-1 flex items-center justify-center gap-2"
             >
                 Se connecter
@@ -39,7 +43,7 @@ const LoginWall: React.FC<LoginWallProps> = ({ jobTitle, companyName }) => {
             </button>
             
             <button 
-                onClick={() => navigate('/register')} 
+                onClick={() => navigate('/register?type=student', { state: returnState })} 
                 className="w-full py-4 bg-white border border-gray-200 text-slate-700 font-bold rounded-xl hover:bg-gray-50 hover:text-slate-900 transition-colors"
             >
                 Créer un compte gratuit
@@ -47,8 +51,8 @@ const LoginWall: React.FC<LoginWallProps> = ({ jobTitle, companyName }) => {
         </div>
 
         <div className="mt-8 pt-6 border-t border-gray-50">
-            <Link to="/search" className="text-sm font-medium text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1 transition-colors">
-                <ArrowLeft size={14} /> Retour aux résultats
+            <Link to={backTo} state={backState} className="text-sm font-medium text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1 transition-colors">
+                <ArrowLeft size={14} /> Retour
             </Link>
         </div>
     </div>

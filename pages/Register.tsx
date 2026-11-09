@@ -1,23 +1,25 @@
 import React, { useEffect } from 'react';
-import { ArrowRight, Loader2, GraduationCap, Building2, User, Rocket, Quote, Check } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Loader2, GraduationCap, Building2, User, Rocket, Check } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { RegisterFormFields } from '../components/register/RegisterFormFields';
 import { FileUpload } from '../components/register/FileUpload';
 import { useRegisterForm } from '../hooks/useRegisterForm';
 import { useAuth } from '../context/AuthContext';
+import { returnPathForRole } from '../utils/localAuth';
+import LoginVisuals from '../components/login/LoginVisuals';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
-  const { isLoggedIn, isLoading } = useAuth();
+  const { isLoggedIn, isLoading, user } = useAuth();
+  const location = useLocation();
   
   const {
     accountType,
     handleAccountTypeChange,
     formData,
     file,
-    status,
-    uploadProgress,
     isSubmitting,
+    error,
     handleInputChange,
     handleFileChange,
     removeFile,
@@ -27,11 +29,11 @@ const Register: React.FC = () => {
   // Redirection si l'utilisateur est déjà connecté
   useEffect(() => {
     if (!isLoading && isLoggedIn) {
-      navigate('/profile');
+      navigate(returnPathForRole(location.state?.returnTo, user?.role || ''), { replace: true, state: location.state?.returnState });
       // Optionnel : Afficher un toast pour expliquer pourquoi
       // window.Toastify(...).showToast(); 
     }
-  }, [isLoading, isLoggedIn, navigate]);
+  }, [isLoading, isLoggedIn, navigate, location.state, user?.role]);
 
   if (isLoading) return null; // Évite le flash du formulaire pendant le chargement
 
@@ -46,18 +48,21 @@ const Register: React.FC = () => {
                 <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-slate-900 mb-6 shadow-lg shadow-primary/20">
                     <Rocket size={24} />
                 </div>
-                <h2 className="text-3xl font-heading font-extrabold text-slate-900">
+                <h1 className="text-3xl font-heading font-extrabold text-slate-900">
                     Rejoignez l'aventure
-                </h2>
+                </h1>
                 <p className="mt-2 text-sm text-gray-500">
-                    Créez votre profil et accédez aux meilleures opportunités à Madagascar.
+                    Créez votre profil pour découvrir Rise.
                 </p>
             </div>
 
+            <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900"><strong>Démonstration locale :</strong> ce compte n’existe que dans ce navigateur, sans serveur ni récupération par e-mail. Utilisez des informations fictives et un mot de passe non réutilisé : ces données ne sont pas sécurisées.</p>
+            <p className="text-sm font-bold text-slate-800 mb-3" id="register-role-label">Choisissez votre profil</p>
             {/* Account Type Selector - Highlighted Cards */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div role="group" aria-labelledby="register-role-label" className="grid grid-cols-3 gap-3 mb-6">
                 <button
                     type="button"
+                    aria-pressed={accountType === 'student'} disabled={isSubmitting}
                     onClick={() => handleAccountTypeChange('student')}
                     className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 ${
                         accountType === 'student' 
@@ -78,6 +83,7 @@ const Register: React.FC = () => {
 
                 <button
                     type="button"
+                    aria-pressed={accountType === 'company'} disabled={isSubmitting}
                     onClick={() => handleAccountTypeChange('company')}
                     className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 ${
                         accountType === 'company' 
@@ -93,11 +99,12 @@ const Register: React.FC = () => {
                     <div className={`p-2.5 rounded-xl mb-2 transition-colors ${accountType === 'company' ? 'bg-primary text-slate-900' : 'bg-gray-100 text-gray-500'}`}>
                         <Building2 size={20} />
                     </div>
-                    <span className="text-xs font-bold">Recruteur</span>
+                    <span className="text-xs font-bold">Entreprise</span>
                 </button>
 
                 <button
                     type="button"
+                    aria-pressed={accountType === 'individual'} disabled={isSubmitting}
                     onClick={() => handleAccountTypeChange('individual')}
                     className={`relative flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all duration-300 ${
                         accountType === 'individual' 
@@ -113,20 +120,21 @@ const Register: React.FC = () => {
                     <div className={`p-2.5 rounded-xl mb-2 transition-colors ${accountType === 'individual' ? 'bg-primary text-slate-900' : 'bg-gray-100 text-gray-500'}`}>
                         <User size={20} />
                     </div>
-                    <span className="text-xs font-bold">Perso</span>
+                    <span className="text-xs font-bold">Particulier</span>
                 </button>
             </div>
             
             <div className="mb-8 text-center animate-fade-in">
                  <p className="text-xs font-medium text-gray-500 bg-gray-50 py-2.5 px-4 rounded-xl inline-block border border-gray-100">
                     {accountType === 'student' && "🎓 Trouvez un stage ET publiez vos projets innovants."}
-                    {accountType === 'company' && "🏢 Publiez vos offres et accédez à la CVthèque."}
+                    {accountType === 'company' && "🏢 Publiez des offres et consultez les candidatures reçues."}
                     {accountType === 'individual' && "🏠 Trouvez de l'aide ponctuelle (cours, baby-sitting...)."}
                  </p>
             </div>
 
+            <p className="text-xs text-slate-500 mb-6">L’inscription et la consultation sont gratuites. Un abonnement actif est nécessaire pour postuler ou publier, selon votre profil.</p>
             <form className="space-y-6" onSubmit={handleSubmit}>
-                
+                <fieldset disabled={isSubmitting} className="space-y-6">
                 <RegisterFormFields 
                     accountType={accountType}
                     formData={formData} 
@@ -136,8 +144,6 @@ const Register: React.FC = () => {
                 {accountType === 'student' && (
                     <FileUpload 
                         file={file}
-                        status={status}
-                        progress={uploadProgress}
                         onFileChange={handleFileChange}
                         onRemove={removeFile}
                     />
@@ -153,10 +159,12 @@ const Register: React.FC = () => {
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
                     />
                     <label htmlFor="terms" className="ml-2 block text-sm text-gray-900 cursor-pointer">
-                    J'accepte les <a href="#" className="text-primary hover:underline font-bold">conditions d'utilisation</a>
+                    Je comprends que ce compte est une démonstration locale non sécurisée.
                     </label>
                 </div>
 
+                </fieldset>
+                {error && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>}
                 {/* Submit Button */}
                 <button
                     type="submit"
@@ -170,7 +178,7 @@ const Register: React.FC = () => {
                     </>
                     ) : (
                     <>
-                        {accountType === 'student' ? 'Créer mon compte Étudiant' : accountType === 'company' ? 'Créer un compte Recruteur' : 'Créer un compte Perso'}
+                        {accountType === 'student' ? 'Créer mon compte Étudiant' : accountType === 'company' ? 'Créer un compte Entreprise' : 'Créer un compte Particulier'}
                         <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                     )}
@@ -178,39 +186,12 @@ const Register: React.FC = () => {
             </form>
             
             <p className="text-center text-sm text-gray-500 mt-8">
-                Déjà inscrit ? <Link to="/login" className="font-bold text-primary hover:text-yellow-600 transition-colors">Se connecter</Link>
+                Déjà inscrit ? <Link to="/login" state={location.state} className="font-bold text-primary hover:text-yellow-600 transition-colors">Se connecter</Link>
             </p>
         </div>
       </div>
 
-      {/* RIGHT SIDE: IMAGE */}
-      <div className="hidden lg:block relative w-0 flex-1 bg-slate-900 overflow-hidden">
-         <img 
-            className="absolute inset-0 h-full w-full object-cover opacity-80" 
-            src="https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=2670&auto=format&fit=crop" 
-            alt="Team working" 
-         />
-         {/* Overlay Gradient */}
-         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/60 to-primary/10 mix-blend-multiply"></div>
-         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-90"></div>
-
-         <div className="absolute bottom-0 left-0 p-16 text-white z-10 max-w-2xl">
-            <div className="w-12 h-12 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center mb-6 text-primary border border-white/20">
-                <Quote size={20} className="fill-current" />
-            </div>
-            <blockquote className="text-2xl font-heading font-bold leading-relaxed mb-6">
-                "Grâce à Rise, nous avons recruté 5 stagiaires talentueux de l'ESPA en moins d'une semaine. Une efficacité redoutable pour notre startup."
-            </blockquote>
-            <div className="flex items-center gap-4">
-                <img src="https://ui-avatars.com/api/?name=Sarah+Rakoto&background=random" alt="User" className="w-12 h-12 rounded-full border-2 border-primary" />
-                <div>
-                    <div className="font-bold text-white">Sarah Rakoto</div>
-                    <div className="text-slate-400 text-sm">DRH chez TechMada</div>
-                </div>
-            </div>
-         </div>
-      </div>
-
+      <LoginVisuals />
     </div>
   );
 };

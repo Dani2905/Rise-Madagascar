@@ -2,17 +2,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useMessaging } from '../context/MessagingContext';
-import { Search, Send, Phone, Video, Info, ArrowLeft, MessageSquare } from 'lucide-react';
+import { Search, Send, ArrowLeft, MessageSquare } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const Messages: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { conversations, messages, sendMessage, getMessages, markAsRead } = useMessaging();
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!isLoading && !user) navigate('/login', { replace: true, state: { returnTo: `/messages${searchParams.toString() ? `?${searchParams.toString()}` : ''}` } });
+  }, [isLoading, user, navigate, searchParams]);
 
   useEffect(() => {
     // Si un ID est passé dans l'URL, ouvrir la conversation
@@ -140,24 +143,15 @@ const Messages: React.FC = () => {
                         <button onClick={() => setSelectedPartnerId(null)} className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
                             <ArrowLeft size={20} />
                         </button>
-                        <div className="relative">
-                            <img 
-                                src={activeConversation?.partnerAvatar || partnerInfo?.avatar || `https://ui-avatars.com/api/?name=User&background=random`} 
-                                className="w-10 h-10 rounded-full object-cover border border-gray-100" 
-                                alt=""
-                            />
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                        <div>
+                            <img src={activeConversation?.partnerAvatar || partnerInfo?.avatar || `https://ui-avatars.com/api/?name=User&background=random`} className="w-10 h-10 rounded-full object-cover border border-gray-100" alt="" />
                         </div>
                         <div>
                             <h2 className="font-bold text-slate-900">{activeConversation?.partnerName || partnerInfo?.name || 'Utilisateur'}</h2>
-                            <p className="text-xs text-green-600 font-medium">En ligne</p>
+                            <p className="text-xs text-slate-500 font-medium">Messagerie simulée dans ce navigateur</p>
                         </div>
                     </div>
-                    <div className="flex gap-2 text-gray-400">
-                        <button className="p-2 hover:bg-gray-50 rounded-full hover:text-primary transition-colors"><Phone size={20} /></button>
-                        <button className="p-2 hover:bg-gray-50 rounded-full hover:text-primary transition-colors"><Video size={20} /></button>
-                        <button className="p-2 hover:bg-gray-50 rounded-full hover:text-primary transition-colors"><Info size={20} /></button>
-                    </div>
+
                 </div>
 
                 {/* Messages List */}

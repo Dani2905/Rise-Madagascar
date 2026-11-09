@@ -1,19 +1,27 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
-import { MOCK_JOBS } from '../data/jobsData';
-import { ALL_COMPANIES } from '../data/companiesData';
+import { getAvailableJobs } from '../utils/jobSearch';
+import { industryLabel } from '../utils/industry';
 import LoginWall from '../components/job-details/LoginWall';
 import JobDetailsHeader from '../components/job-details/JobDetailsHeader';
 import JobDescription from '../components/job-details/JobDescription';
 import JobSidebar from '../components/job-details/JobSidebar';
 import { useAuth } from '../context/AuthContext';
+import { useSubscription } from '../context/SubscriptionContext';
+import { canPerformAction } from '../utils/subscription';
 
 const JobDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromSearch = typeof location.state?.fromSearch === 'string' && /^\/search(?:\?|$)/.test(location.state.fromSearch) ? location.state.fromSearch : '/search';
+  const fromCompany = typeof location.state?.fromCompany === 'string' && /^\/companies\/[^/?]+(?:\?|$)/.test(location.state.fromCompany) ? location.state.fromCompany : null;
+  const returnPath = fromCompany || fromSearch;
+  const returnState = fromCompany && typeof location.state?.fromDirectory === 'string' ? { fromDirectory: location.state.fromDirectory } : undefined;
   const { user, isLoggedIn, updateUser } = useAuth();
+  const { openSubscription } = useSubscription();
   const [isLoading, setIsLoading] = useState(true);
   const [job, setJob] = useState<any>(null);
 
@@ -21,21 +29,21 @@ const JobDetails: React.FC = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     
-    // A. Chercher l'offre (MOCK ou LIVE)
-    let foundJob: any = MOCK_JOBS.find(j => j.id === id);
-
-    if (!foundJob) {
-        const customJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-        foundJob = customJobs.find((j: any) => j.id.toString() === id);
-    }
+    // Même source et même règle d'activité que la liste de résultats.
+    let foundJob: any = getAvailableJobs().find(j => String(j.id) === id);
+    setJob(null);
 
     if (foundJob) {
         // B. HYDRATATION : Récupérer les infos fraîches du propriétaire
         // Si l'offre a un ownerId, on va chercher le profil dans rise_db_users
         // pour être sûr d'afficher le logo/nom actuel (au cas où le profil a été modifié après la publication de l'offre)
         if (foundJob.ownerId) {
-            const dbUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
-            const owner = dbUsers.find((u: any) => u.id.toString() === foundJob.ownerId.toString());
+            let dbUsers: any[] = [];
+            try {
+                const parsed = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
+                dbUsers = Array.isArray(parsed) ? parsed : [];
+            } catch { /* Aucun profil local lisible. */ }
+            const owner = dbUsers.find((u: any) => u?.id != null && String(u.id) === String(foundJob.ownerId));
 
             if (owner) {
                 const isIndividual = owner.role === 'individual';
@@ -52,28 +60,23 @@ const JobDetails: React.FC = () => {
                         id: owner.id, // Important pour la navigation vers le profil
                         size: owner.companySize || 'N/A',
                         // Si c'est un particulier, on force le tag 'Particulier' pour l'UI de la Sidebar
-                        industry: isIndividual ? 'Particulier' : (owner.industry || 'Autre'),
-                        website: owner.website || 'Non renseigné'
+                        industry: isIndividual ? 'Particulier' : industryLabel(owner.industry),
+                        website: owner.website || ''
                     }
                 };
             }
         } 
-        // Cas MOCK ou sans ownerId : on s'assure que companyInfo existe
+        // Les exemples ne correspondent pas à des recruteurs inscrits.
         else if (!foundJob.companyInfo) {
-             // Essayer de trouver une correspondance dans les entreprises MOCK pour avoir l'ID
-             const mockCompany = ALL_COMPANIES.find((c: any) => c.name === foundJob.company);
-             
-             foundJob.companyInfo = {
-                id: mockCompany?.id,
-                size: 'N/A',
-                industry: 'N/A',
-                website: 'Non renseigné'
-            };
+             foundJob = { ...foundJob, companyInfo: { size: 'N/A', industry: 'N/A', website: '' } };
         }
 
         // C. Normalisation finale
         const normalizedJob = {
             ...foundJob,
+            logoUrl: foundJob.logoUrl || '',
+            tags: Array.isArray(foundJob.tags) ? foundJob.tags : [],
+            companyInfo: foundJob.companyInfo || { size: 'N/A', industry: 'N/A', website: '' },
             requirementsText: typeof foundJob.requirements === 'string' ? foundJob.requirements : undefined,
             requirements: (typeof foundJob.requirements === 'object' && foundJob.requirements !== null) ? foundJob.requirements : {
                 education: 'Non spécifié',
@@ -88,8 +91,13 @@ const JobDetails: React.FC = () => {
   }, [id]);
 
   const handleApply = () => {
+    if (!job || !getAvailableJobs().some(item => String(item.id) === String(job.id))) {
+        setJob(null);
+        if (window.Toastify) window.Toastify({ text: "Cette offre n'est plus disponible.", style: { background: '#ef4444' } }).showToast();
+        return;
+    }
     if (!user) {
-        navigate('/login');
+        navigate('/login', { state: { returnTo: `${location.pathname}${location.search}`, returnState: location.state } });
         return;
     }
     if (user.role !== 'student') {
@@ -100,22 +108,30 @@ const JobDetails: React.FC = () => {
         return;
     }
 
-    if (!user.hasSubscription) {
+    if (!canPerformAction(user, 'apply')) {
         window.Toastify({
-            text: "Un abonnement est requis pour postuler.",
+            text: "Un abonnement étudiant actif est nécessaire pour postuler.",
             style: { background: "#ef4444" }
         }).showToast();
-        navigate('/pricing');
+        openSubscription();
         return;
     }
 
     // --- 1. VERIFICATION DOUBLONS (Source de vérité : rise_applications) ---
-    const globalApps = JSON.parse(localStorage.getItem('rise_applications') || '[]');
+    let globalApps: any[];
+    try {
+        const parsed = JSON.parse(localStorage.getItem('rise_applications') || '[]');
+        if (!Array.isArray(parsed)) throw new Error('invalid applications');
+        globalApps = parsed;
+    } catch {
+        if (window.Toastify) window.Toastify({ text: "Les candidatures enregistrées sont illisibles ; impossible de poursuivre sans risque de les écraser.", style: { background: '#ef4444' } }).showToast();
+        return;
+    }
     
     // On vérifie si CET utilisateur a déjà postulé à CE job
     const alreadyApplied = globalApps.some((app: any) => 
-        (app.jobId.toString() === job.id.toString() && app.applicantId === user.id) ||
-        (app.jobId.toString() === job.id.toString() && app.email === user.email) // Fallback email
+        (app?.jobId != null && String(app.jobId) === String(job.id) && app.applicantId != null && String(app.applicantId) === String(user.id)) ||
+        (app?.jobId != null && String(app.jobId) === String(job.id) && user.email && app.email === user.email) // Fallback email
     );
 
     if (alreadyApplied) {
@@ -170,8 +186,12 @@ const JobDetails: React.FC = () => {
 
     // --- 5. MISE À JOUR DU COMPTEUR DE L'OFFRE ---
     // Si c'est un job dynamique (dans localStorage), on incrémente son compteur
-    const customJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-    const jobIndex = customJobs.findIndex((j: any) => j.id.toString() === job.id.toString());
+    let customJobs: any[] = [];
+    try {
+        const parsed = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
+        customJobs = Array.isArray(parsed) ? parsed : [];
+    } catch { /* Pas de compteur local lisible. */ }
+    const jobIndex = customJobs.findIndex((j: any) => j?.id != null && String(j.id) === String(job.id));
     
     if (jobIndex !== -1) {
         const currentCandidates = parseInt(customJobs[jobIndex].candidates || 0);
@@ -184,7 +204,7 @@ const JobDetails: React.FC = () => {
 
     // Feedback Succès
     window.Toastify({
-        text: "Candidature envoyée avec succès !",
+        text: "Candidature enregistrée dans ce navigateur (démonstration).",
         duration: 3000,
         gravity: "top",
         position: "center",
@@ -207,7 +227,7 @@ const JobDetails: React.FC = () => {
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Offre introuvable</h1>
             <p className="text-gray-500 mb-8">Cette offre a peut-être expiré ou a été supprimée.</p>
-            <Link to="/search" className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold">
+            <Link to={returnPath} state={returnState} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold">
                 Retour aux offres
             </Link>
         </div>
@@ -215,7 +235,7 @@ const JobDetails: React.FC = () => {
   }
 
   if (!isLoggedIn) {
-    return <LoginWall jobTitle={job.title} companyName={job.company} />;
+    return <LoginWall jobTitle={job.title} companyName={job.company} backTo={returnPath} backState={returnState} />;
   }
 
   return (
@@ -224,8 +244,8 @@ const JobDetails: React.FC = () => {
         
         {/* Breadcrumb & Back */}
         <div className="mb-8">
-            <Link to="/search" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
-                <ArrowLeft size={16} className="mr-2" /> Retour aux offres
+            <Link to={returnPath} state={returnState} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
+                <ArrowLeft size={16} className="mr-2" /> {fromCompany ? 'Retour au profil' : 'Retour aux offres'}
             </Link>
         </div>
 
@@ -233,6 +253,7 @@ const JobDetails: React.FC = () => {
             
             {/* LEFT COLUMN (Main Content) */}
             <div className="lg:col-span-8">
+                {job.isDemo && <p className="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">Cette offre est un exemple fictif. Toute candidature est une simulation enregistrée uniquement dans ce navigateur.</p>}
                 <JobDetailsHeader job={job} />
                 <JobDescription 
                     description={job.description} 
