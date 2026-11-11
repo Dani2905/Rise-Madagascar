@@ -41,7 +41,7 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
                             Espace Recruteurs
                         </div>
                         <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-slate-900 mb-4 leading-tight">
-                            L'écosystème <span className="text-yellow-600">Rise</span>
+                            L'écosystème <span className="text-yellow-600">Rise Madagascar</span>
                         </h1>
                         <p className="text-lg text-gray-500 leading-relaxed">
                             Connectez-vous aux recruteurs qui façonnent l'avenir. 
@@ -123,7 +123,7 @@ const CompaniesHero: React.FC<CompaniesHeroProps> = ({
                             </h2>
                             <p className="text-slate-400 mb-8 text-sm leading-relaxed">
                                 {activeTab === 'companies' 
-                                    ? "Rejoignez l'écosystème Rise et publiez vos offres pour les étudiants de Madagascar."
+                                    ? "Rejoignez l'écosystème Rise Madagascar et publiez vos offres pour les étudiants de Madagascar."
                                     : "Présentez votre besoin pour recevoir des candidatures d'étudiants."
                                 }
                             </p>

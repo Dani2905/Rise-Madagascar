@@ -47,7 +47,7 @@ const CompanyCandidatesTab: React.FC<CompanyCandidatesTabProps> = ({
 
             <div className="flex flex-col md:flex-row items-center md:items-start gap-5 flex-1">
               <div className="w-20 h-20 rounded-2xl bg-slate-100 shrink-0 relative shadow-sm border border-gray-200/50">
-                <img src={candidate.avatarUrl || `https://ui-avatars.com/api/?name=${candidate.name}`} className="w-full h-full rounded-2xl object-cover" alt="" />
+                {candidate.avatarUrl ? <img src={candidate.avatarUrl} className="w-full h-full rounded-2xl object-cover" alt="" /> : <span className="w-full h-full flex items-center justify-center text-xl font-bold text-slate-600">{(candidate.name || '?').slice(0, 2).toUpperCase()}</span>}
                 {candidate.status === 'accepted' && <div className="absolute -bottom-2 -right-2 bg-green-500 text-white rounded-full p-1.5 border-4 border-white shadow-sm"><CheckCircle size={14} /></div>}
                 {candidate.status === 'completed' && <div className="absolute -bottom-2 -right-2 bg-yellow-500 text-white rounded-full p-1.5 border-4 border-white shadow-sm"><Medal size={14} /></div>}
               </div>

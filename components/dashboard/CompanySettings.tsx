@@ -1,393 +1,74 @@
+import PrivacySettings from '../messaging/PrivacySettings';
+import React, { useState } from 'react';
+import { Bell, Building2, Gift, Globe, Plus, Save, User, X } from 'lucide-react';
+import { FloatingInput, FloatingTextArea } from '../FloatingInput';
 import SubscriptionCard from '../subscription/SubscriptionCard';
 import PasswordCard from '../account/PasswordCard';
+import { getWebsiteUrl } from '../../utils/website';
 
-import React, { useState, useRef } from 'react';
-import { Save, Loader2, Building2, User, Bell, Lock, Camera, Gift, Plus, X, Briefcase, Users as UsersIcon, Star } from 'lucide-react';
-import { FloatingInput, FloatingTextArea } from '../FloatingInput';
-import { Link } from 'react-router-dom';
-
-declare global {
-  interface Window {
-    Toastify: any;
-  }
-}
-
-interface CompanySettingsProps {
-  data: any;
-  onUpdate: (newData: any) => void;
-}
-
-const CompanySettings: React.FC<CompanySettingsProps> = ({ data, onUpdate }) => {
-  const [formData, setFormData] = useState({
-    companyName: data?.companyName || '',
-    website: data?.website || '',
-    location: data?.location || '',
-    industry: data?.industry || '',
-    companySize: data?.companySize || '',
-    founded: data?.founded || '',
-    description: data?.description || "Description courte...",
-    bio: data?.bio || "",
-    perks: Array.isArray(data?.perks) ? data.perks : [],
-    contactName: (data?.firstName && data?.lastName) ? `${data.firstName} ${data.lastName}` : (data?.firstName || 'Recruteur'),
-    // Ensure we read correct position or fallback
-    contactRole: data?.position || data?.contactRole || 'RH',
-    email: data?.email || '',
-    notifications: {
-      applications: true,
-      messages: true,
-      newsletter: false
-    }
+interface Props { data: any; onUpdate: (updates: any) => void; }
+const CompanySettings: React.FC<Props> = ({ data, onUpdate }) => {
+  const [form, setForm] = useState({
+    companyName: data?.companyName || '', website: data?.website || '', location: data?.location || data?.city || '',
+    industry: data?.industry || '', companySize: data?.companySize || '', founded: data?.founded != null ? String(data.founded) : '',
+    description: data?.description || '', bio: data?.bio || '', activities: data?.activities || '', values: data?.values || '',
+    linkedinUrl: (Array.isArray(data?.socials) ? data.socials.find((s: any) => s?.type === 'linkedin')?.url : '') || '',
+    facebookUrl: (Array.isArray(data?.socials) ? data.socials.find((s: any) => s?.type === 'facebook')?.url : '') || '',
+    perks: Array.isArray(data?.perks) ? [...data.perks] : [],
+    firstName: data?.firstName || '', lastName: data?.lastName || '', position: data?.position || data?.contactRole || '', phone: data?.phone || ''
   });
-
-  const [perkInput, setPerkInput] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+  const [perk, setPerk] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const change = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => { setForm(prev => ({ ...prev, [e.target.id]: e.target.value })); setError(''); setMessage(''); };
+  const addPerk = () => { const value = perk.trim(); if (value && !form.perks.includes(value)) setForm(prev => ({ ...prev, perks: [...prev.perks, value] })); setPerk(''); };
+  const save = (event: React.FormEvent) => {
+    event.preventDefault(); setError(''); setMessage('');
+    if (!form.companyName.trim() || !form.firstName.trim() || !form.lastName.trim()) { setError('Renseignez le nom de l’entreprise, le prénom et le nom du responsable.'); return; }
+    if (form.website.trim() && !getWebsiteUrl(form.website)) { setError('Renseignez une adresse de site web valide ou laissez le champ vide.'); return; }
+    if ([form.linkedinUrl, form.facebookUrl].some(link => link.trim() && !getWebsiteUrl(link))) { setError('Renseignez des liens de réseaux sociaux valides ou laissez-les vides.'); return; }
+    if (form.founded.trim() && (!/^\d{4}$/.test(form.founded.trim()) || +form.founded > new Date().getFullYear() || +form.founded < 1800)) { setError('Renseignez une année de création valide ou laissez le champ vide.'); return; }
+    try {
+      const { linkedinUrl, facebookUrl, ...fields } = form;
+      const otherSocials = Array.isArray(data?.socials) ? data.socials.filter((s: any) => s && s.type !== 'linkedin' && s.type !== 'facebook') : [];
+      const socials = [...otherSocials, ...(linkedinUrl.trim() ? [{ type: 'linkedin', url: linkedinUrl.trim() }] : []), ...(facebookUrl.trim() ? [{ type: 'facebook', url: facebookUrl.trim() }] : [])];
+      onUpdate({ ...fields, socials, companyName: form.companyName.trim(), firstName: form.firstName.trim(), lastName: form.lastName.trim(), location: form.location.trim(), city: form.location.trim(), website: form.website.trim(), position: form.position.trim(), phone: form.phone.trim(), founded: form.founded.trim(), description: form.description.trim(), bio: form.bio.trim(), activities: form.activities.trim(), values: form.values.trim() });
+      setMessage('Informations enregistrées dans ce navigateur.');
+    } catch { setError('Impossible d’enregistrer les informations dans ce navigateur.'); }
   };
-
-  const handleToggle = (key: keyof typeof formData.notifications) => {
-    setFormData(prev => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [key]: !prev.notifications[key]
-      }
-    }));
-  };
-
-  const handleAddPerk = (e?: React.MouseEvent | React.KeyboardEvent) => {
-      if (e) e.preventDefault();
-      const trimmed = perkInput.trim();
-      if (trimmed && Array.isArray(formData.perks) && !formData.perks.includes(trimmed)) {
-          setFormData(prev => ({ ...prev, perks: [...(prev.perks || []), trimmed] }));
-          setPerkInput('');
-      }
-  };
-
-  const handleRemovePerk = (perkToRemove: string) => {
-      setFormData(prev => ({ ...prev, perks: (prev.perks || []).filter((p: string) => p !== perkToRemove) }));
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-          if (file.size > 2 * 1024 * 1024) {
-              if (window.Toastify) window.Toastify({ text: "Image trop lourde (Max 2MB)", style: { background: "#ef4444" } }).showToast();
-              return;
-          }
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              onUpdate({ logoUrl: reader.result as string });
-              if (window.Toastify) window.Toastify({ text: "Logo mis à jour temporairement (Sauvegardez pour confirmer)", style: { background: "#3b82f6" } }).showToast();
-          };
-          reader.readAsDataURL(file);
-      }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    
-    setTimeout(() => {
-      try {
-          const fullName = String(formData.contactName || '');
-          const names = fullName.trim().split(' ');
-          const firstName = names[0] || 'Prénom';
-          const lastName = names.slice(1).join(' ') || '';
-
-          onUpdate({
-            companyName: formData.companyName || 'Mon Entreprise',
-            website: formData.website,
-            location: formData.location,
-            industry: formData.industry,
-            companySize: formData.companySize,
-            founded: formData.founded,
-            description: formData.description,
-            bio: formData.bio,
-            perks: formData.perks || [],
-            // Securely update position without touching 'role'
-            position: formData.contactRole,
-            firstName: firstName,
-            lastName: lastName,
-          });
-          
-          if (window.Toastify) {
-              window.Toastify({
-                text: "Paramètres enregistrés !",
-                style: { background: "linear-gradient(to right, #10B981, #059669)" }
-              }).showToast();
-          }
-      } catch (error) {
-          console.error("Save error:", error);
-          if (window.Toastify) window.Toastify({ text: "Erreur lors de la sauvegarde", style: { background: "#ef4444" } }).showToast();
-      } finally {
-          setIsSaving(false);
-      }
-    }, 800);
-  };
-
-  return (
-    <div className="space-y-6">
-    <form onSubmit={handleSubmit} className="space-y-6 animate-fade-in">
-      
-      <SubscriptionCard data={data} onUpdate={onUpdate} />
-
-      {/* 1. Informations Entreprise */}
-      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-        <h3 className="font-heading font-black text-xl text-slate-900 mb-8 flex items-center gap-3 tracking-tight">
-            <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
-                <Building2 size={20} />
-            </div>
-            Profil Public
-        </h3>
-        
-        <div className="flex flex-col md:flex-row gap-8 mb-8">
-            {/* Logo Upload */}
-            <div className="flex flex-col items-center gap-4">
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*" 
-                    onChange={handleImageUpload}
-                />
-                <div 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-28 h-28 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center relative group cursor-pointer overflow-hidden shadow-sm hover:border-blue-300 transition-all"
-                >
-                    <img src={data?.logoUrl || data?.avatarUrl || "https://via.placeholder.com/150"} alt="Logo" className="w-full h-full object-cover opacity-90 group-hover:opacity-75 transition-opacity" />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/40 backdrop-blur-sm">
-                        <Camera className="text-white drop-shadow-md" size={28} />
-                    </div>
-                </div>
-                <span onClick={() => fileInputRef.current?.click()} className="text-[13px] font-bold text-slate-500 cursor-pointer hover:text-slate-900 hover:underline">Changer le logo</span>
-            </div>
-
-            <div className="flex-1 space-y-5">
-                <FloatingInput 
-                    id="companyName" 
-                    label="Nom de l'entreprise" 
-                    value={formData.companyName} 
-                    onChange={handleChange} 
-                    required 
-                />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FloatingInput 
-                        id="website" 
-                        label="Site Web" 
-                        value={formData.website} 
-                        onChange={handleChange} 
-                    />
-                    <FloatingInput 
-                        id="location" 
-                        label="Siège Social (Ville)" 
-                        value={formData.location} 
-                        onChange={handleChange} 
-                    />
-                </div>
-            </div>
+  return <div className="space-y-6">
+    <SubscriptionCard data={data} onUpdate={onUpdate} />
+    <PrivacySettings />
+    <form onSubmit={save} className="space-y-6 animate-fade-in">
+      <section className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm">
+        <h3 className="font-heading font-black text-xl text-slate-900 mb-6 flex items-center gap-3"><Building2 className="text-blue-600" size={22} /> Profil de l’entreprise</h3>
+        <p className="text-xs text-slate-500 mb-5">Les informations de l’entreprise sont visibles dans son aperçu local. Modifiez le logo et la couverture depuis l’en-tête.</p>
+        <FloatingInput id="companyName" label="Nom de l'entreprise" value={form.companyName} onChange={change} required />
+        <div className="grid md:grid-cols-2 gap-4"><FloatingInput id="website" label="Site Web (facultatif)" value={form.website} onChange={change} /><FloatingInput id="location" label="Siège social (ville)" value={form.location} onChange={change} /></div>
+        <div className="grid md:grid-cols-3 gap-4 mb-6">
+          <div><label htmlFor="industry" className="text-xs font-bold text-slate-600">Secteur</label><select id="industry" value={form.industry} onChange={change} className="mt-2 w-full rounded-lg border border-gray-300 p-3 text-sm"><option value="">Non renseigné</option>{form.industry && !['Tech', 'Finance', 'Telecom', 'Marketing', 'Industry', 'Services', 'Other'].includes(form.industry) && <option value={form.industry}>{form.industry}</option>}<option value="Tech">Informatique / Tech</option><option value="Finance">Banque / Finance</option><option value="Telecom">Télécoms</option><option value="Marketing">Marketing / Com</option><option value="Industry">Industrie / BTP</option><option value="Services">Services</option><option value="Other">Autre</option></select></div>
+          <div><label htmlFor="companySize" className="text-xs font-bold text-slate-600">Taille</label><select id="companySize" value={form.companySize} onChange={change} className="mt-2 w-full rounded-lg border border-gray-300 p-3 text-sm"><option value="">Non renseignée</option>{form.companySize && !['1-10', '11-50', '51-200', '200+', '1000+'].includes(form.companySize) && <option value={form.companySize}>{form.companySize}</option>}<option value="1-10">1 - 10 employés</option><option value="11-50">11 - 50 employés</option><option value="51-200">51 - 200 employés</option><option value="200+">200+ employés</option><option value="1000+">1000+ employés</option></select></div>
+          <FloatingInput id="founded" label="Année de création" inputMode="numeric" maxLength={4} value={form.founded} onChange={change} />
         </div>
-
-        {/* Détails Structurels (New) */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="relative">
-                <select
-                    id="industry"
-                    value={formData.industry}
-                    onChange={handleChange}
-                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border-1 border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-teal-600 peer border border-gray-300 h-[52px]"
-                >
-                    <option value="" disabled hidden></option>
-                    <option value="Tech">Informatique / Tech</option>
-                    <option value="Finance">Banque / Finance</option>
-                    <option value="Telecom">Télécoms</option>
-                    <option value="Marketing">Marketing / Com</option>
-                    <option value="Industry">Industrie / BTP</option>
-                    <option value="Services">Services</option>
-                    <option value="Other">Autre</option>
-                </select>
-                <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1 flex items-center gap-1">
-                    <Briefcase size={14} /> Secteur
-                </label>
-            </div>
-
-            <div className="relative">
-                <select
-                    id="companySize"
-                    value={formData.companySize}
-                    onChange={handleChange}
-                    className="block px-2.5 pb-2.5 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border-1 border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-teal-600 peer border border-gray-300 h-[52px]"
-                >
-                    <option value="" disabled hidden></option>
-                    <option value="1-10">1 - 10 employés</option>
-                    <option value="11-50">11 - 50 employés</option>
-                    <option value="51-200">51 - 200 employés</option>
-                    <option value="200+">200+ employés</option>
-                    <option value="1000+">1000+ employés</option>
-                </select>
-                <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1 flex items-center gap-1">
-                    <UsersIcon size={14} /> Taille
-                </label>
-            </div>
-
-            <FloatingInput 
-                id="founded" 
-                label="Année de création" 
-                value={formData.founded} 
-                onChange={handleChange} 
-                type="text"
-                placeholder="Ex: 2015"
-            />
-        </div>
-
-        <FloatingInput 
-            id="description" 
-            label="Slogan / Description courte (apparaîtra sur vos offres)" 
-            value={formData.description} 
-            onChange={handleChange}
-        />
-
-        <FloatingTextArea 
-            id="bio" 
-            label="Histoire de l'entreprise & Culture (Section À Propos)" 
-            value={formData.bio} 
-            onChange={handleChange}
-            className="h-40"
-        />
-      </div>
-
-      {/* 2. Pourquoi nous rejoindre ? (Perks) */}
-      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-            <h3 className="font-heading font-black text-xl text-slate-900 mb-8 flex items-center gap-3 tracking-tight">
-                <div className="p-2 bg-green-50 text-green-600 rounded-xl">
-                    <Gift size={20} />
-                </div>
-                Pourquoi nous rejoindre ?
-            </h3>
-            
-            <div className="relative mb-6">
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={perkInput}
-                        onChange={(e) => setPerkInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddPerk(e)}
-                        className="flex-1 block px-5 py-4 w-full text-[15px] bg-slate-50 border border-gray-200/60 rounded-2xl focus:border-green-500 focus:ring-1 focus:ring-green-500 focus:bg-white transition-all outline-none font-medium text-slate-900"
-                        placeholder="Ex: Télétravail, Cantine, Mutuelle..."
-                    />
-                    <button 
-                        type="button" 
-                        onClick={handleAddPerk}
-                        className="bg-slate-900 text-white px-5 rounded-2xl hover:bg-slate-800 transition-all flex items-center justify-center shadow-md active:scale-95"
-                    >
-                        <Plus size={24} />
-                    </button>
-                </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-                {Array.isArray(formData.perks) && formData.perks.length > 0 ? (
-                    formData.perks.map((perk: string, index: number) => (
-                        <span key={index} className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 text-green-700 text-sm font-bold border border-green-100 animate-fade-in">
-                            {perk}
-                            <button type="button" onClick={() => handleRemovePerk(perk)} className="hover:text-green-900 bg-green-100 rounded-full p-0.5 transition-colors">
-                                <X size={12} />
-                            </button>
-                        </span>
-                    ))
-                ) : (
-                    <p className="text-sm text-gray-400 italic bg-gray-50 p-3 rounded-lg border border-dashed border-gray-200 w-full text-center">
-                        Aucun avantage listé pour le moment.
-                    </p>
-                )}
-            </div>
-      </div>
-
-      {/* 3. Contact Recruteur */}
-      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-        <h3 className="font-heading font-black text-xl text-slate-900 mb-8 flex items-center gap-3 tracking-tight">
-            <div className="p-2 bg-blue-50 text-blue-500 rounded-xl">
-                <User size={20} />
-            </div>
-            Contact Recruteur (Privé)
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FloatingInput 
-                id="contactName" 
-                label="Nom du responsable" 
-                value={formData.contactName} 
-                onChange={handleChange} 
-            />
-            <FloatingInput 
-                id="contactRole" 
-                label="Intitulé du poste" 
-                value={formData.contactRole} 
-                onChange={handleChange} 
-            />
-            <FloatingInput 
-                id="email" 
-                label="Email de connexion" 
-                value={formData.email} 
-                onChange={handleChange} 
-                type="email"
-                disabled
-                className="bg-gray-50 text-gray-500"
-            />
-
-        </div>
-      </div>
-
-      {/* 4. Notifications & Préférences */}
-      <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
-        <h3 className="font-heading font-black text-xl text-slate-900 mb-8 flex items-center gap-3 tracking-tight">
-            <div className="p-2 bg-yellow-50 text-yellow-500 rounded-xl">
-                <Bell size={20} />
-            </div>
-            Notifications
-        </h3>
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div>
-                    <p className="font-bold text-slate-900">Nouvelles candidatures</p>
-                    <p className="text-sm text-gray-500">Recevoir un email à chaque postulation</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={formData.notifications.applications} onChange={() => handleToggle('applications')} className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-            </div>
-            <div className="flex items-center justify-between">
-                <div>
-                    <p className="font-bold text-slate-900">Messages directs</p>
-                    <p className="text-sm text-gray-500">Recevoir une notif quand un candidat répond</p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" checked={formData.notifications.messages} onChange={() => handleToggle('messages')} className="sr-only peer" />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                </label>
-            </div>
-        </div>
-      </div>
-
-      {/* Save Button */}
-      <div className="flex justify-end pt-4">
-        <button 
-            type="submit" 
-            disabled={isSaving}
-            className="px-8 py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-lg shadow-slate-900/20"
-        >
-            {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-            Enregistrer les modifications
-        </button>
-      </div>
-
+        <FloatingInput id="description" label="Description courte" value={form.description} onChange={change} />
+        <FloatingTextArea id="bio" label="Histoire de l'entreprise et culture" value={form.bio} onChange={change} rows={5} />
+        <FloatingTextArea id="activities" label="Nos activités (facultatif)" value={form.activities} onChange={change} rows={4} />
+        <FloatingTextArea id="values" label="Nos valeurs (facultatif)" value={form.values} onChange={change} rows={4} />
+      </section>
+      <section className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm"><h3 className="font-heading font-black text-xl text-slate-900 mb-5 flex items-center gap-3"><Gift className="text-green-600" size={22} /> Pourquoi nous rejoindre ?</h3>
+        <div className="flex gap-2"><input aria-label="Ajouter un avantage" value={perk} onChange={e => setPerk(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPerk(); } }} placeholder="Ex. : télétravail, formation…" className="flex-1 min-w-0 border rounded-xl p-3 text-sm" /><button type="button" onClick={addPerk} aria-label="Ajouter cet avantage" className="bg-slate-900 text-white rounded-xl px-4"><Plus size={20} /></button></div>
+        <div className="flex flex-wrap gap-2 mt-4">{form.perks.length ? form.perks.map((item: string, i: number) => <span key={i} className="inline-flex gap-2 items-center rounded-lg bg-green-50 border border-green-100 text-green-800 px-3 py-2 text-sm">{item}<button type="button" onClick={() => setForm(prev => ({ ...prev, perks: prev.perks.filter((p: string) => p !== item) }))} aria-label={`Retirer ${item}`}><X size={14} /></button></span>) : <p className="text-sm text-slate-500">Aucun avantage renseigné.</p>}</div>
+      </section>
+      <section className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm"><h3 className="font-heading font-black text-xl text-slate-900 mb-3 flex items-center gap-3"><Globe className="text-blue-600" size={22} /> Présence en ligne</h3><p className="text-xs text-slate-500 mb-5">Liens facultatifs affichés sur la vitrine. Utilisez des adresses web valides.</p><div className="grid md:grid-cols-2 gap-4"><FloatingInput id="linkedinUrl" label="Page LinkedIn" value={form.linkedinUrl} onChange={change} /><FloatingInput id="facebookUrl" label="Page Facebook" value={form.facebookUrl} onChange={change} /></div></section>
+      <section className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm"><h3 className="font-heading font-black text-xl text-slate-900 mb-6 flex items-center gap-3"><User className="text-blue-600" size={22} /> Contact recruteur</h3>
+        <p className="text-xs text-slate-500 mb-5">Ces données sont enregistrées localement ; cette démonstration ne fournit pas de confidentialité serveur.</p>
+        <div className="grid md:grid-cols-2 gap-4"><FloatingInput id="firstName" label="Prénom du responsable" value={form.firstName} onChange={change} required /><FloatingInput id="lastName" label="Nom du responsable" value={form.lastName} onChange={change} required /><FloatingInput id="position" label="Intitulé du poste" value={form.position} onChange={change} /><FloatingInput id="phone" label="Téléphone" type="tel" value={form.phone} onChange={change} /><FloatingInput id="company-email" label="Email de connexion (lecture seule)" value={data?.email || ''} disabled /></div>
+      </section>
+      {error && <p role="alert" className="text-sm text-red-700">{error}</p>}{message && <p role="status" className="text-sm text-green-700">{message}</p>}
+      <div className="flex justify-end"><button type="submit" className="px-8 py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center gap-2"><Save size={18} /> Enregistrer les modifications</button></div>
     </form>
+    <section className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100 shadow-sm"><h3 className="font-heading font-bold text-lg text-slate-900 mb-3 flex items-center gap-2"><Bell className="text-yellow-600" size={20} /> Notifications</h3><p className="text-sm text-slate-600">Les notifications par e-mail et leurs réglages ne sont pas disponibles dans cette démonstration.</p></section>
     <PasswordCard />
-    </div>
-  );
+  </div>;
 };
-
 export default CompanySettings;

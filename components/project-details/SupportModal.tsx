@@ -14,6 +14,7 @@ const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTit
   const [supportType, setSupportType] = useState<'financing' | 'mentoring' | 'partnership'>('mentoring');
   const [message, setMessage] = useState('');
   const [amount, setAmount] = useState('');
+  const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -39,9 +40,10 @@ const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTit
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
+    setError('');
     if (onConfirm({ type: supportType, message: message.trim(), amount })) {
       setMessage(''); setAmount(''); setSupportType('mentoring'); onClose();
-    }
+    } else setError('Impossible d’enregistrer la proposition dans ce navigateur.');
   };
 
   return (
@@ -131,6 +133,7 @@ const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTit
                 className="min-h-[100px]"
             />
 
+            {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
             <button 
                 type="submit" 
                 className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg flex items-center justify-center gap-2"

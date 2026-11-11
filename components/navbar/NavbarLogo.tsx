@@ -10,8 +10,8 @@ const NavbarLogo: React.FC = () => {
         <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-slate-900">
             <Rocket size={20} />
         </div>
-        <span className="font-heading font-bold text-xl text-slate-900">
-            Rise
+        <span className="font-heading font-bold text-base sm:text-xl text-slate-900 whitespace-nowrap">
+            Rise Madagascar
         </span>
     </NavLink>
     </div>

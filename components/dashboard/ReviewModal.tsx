@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Star, Save, Loader2, Quote } from 'lucide-react';
 import { FloatingTextArea } from '../FloatingInput';
 
@@ -16,34 +16,48 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, candidateNam
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
+  const [error, setError] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => { if (isOpen) { setRating(0); setComment(''); setError(''); } }, [isOpen, candidateName, jobTitle]);
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden'; closeRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const items = Array.from(dialogRef.current.querySelectorAll('button:not([disabled]), textarea:not([disabled])')) as HTMLElement[];
+      if (!items.length) return;
+      if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items[items.length - 1].focus(); }
+      else if (!event.shiftKey && document.activeElement === items[items.length - 1]) { event.preventDefault(); items[0].focus(); }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => { document.removeEventListener('keydown', handleKey); document.body.style.overflow = previousOverflow; previouslyFocused?.focus(); };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (rating === 0) {
-        window.Toastify({ text: "Veuillez sélectionner une note.", style: { background: "#ef4444" } }).showToast();
-        return;
-    }
-    
-    setIsSubmitting(true);
-    setTimeout(() => {
-        onSave(rating, comment);
-        setIsSubmitting(false);
-        onClose();
-    }, 800);
+    if (rating === 0 || !comment.trim()) { setError('Sélectionnez une note et rédigez un avis.'); return; }
+    setIsSubmitting(true); setError('');
+    try { onSave(rating, comment.trim()); onClose(); }
+    catch { setError('Impossible d’enregistrer cet avis dans ce navigateur. Vérifiez la candidature et réessayez.'); }
+    finally { setIsSubmitting(false); }
   };
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
 
-      <div className="relative bg-white rounded-3xl w-full max-w-md shadow-2xl animate-fade-in overflow-hidden">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="review-title" className="relative bg-white rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-in">
         <div className="bg-slate-900 p-6 text-center relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-2xl transform translate-x-1/2 -translate-y-1/2"></div>
-            <h2 className="text-xl font-heading font-bold text-white mb-1">Mission Terminée !</h2>
-            <p className="text-slate-400 text-sm">Notez votre expérience avec <span className="text-white font-bold">{candidateName}</span></p>
-            <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
+            <h2 id="review-title" className="text-xl font-heading font-bold text-white mb-1">Terminer la mission</h2>
+            <p className="text-slate-400 text-sm">Notez votre expérience avec <span className="text-white font-bold">{candidateName}</span> pour <span className="text-white">{jobTitle}</span>.</p>
+            <button ref={closeRef} type="button" aria-label="Fermer" onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors">
                 <X size={20} />
             </button>
         </div>
@@ -55,7 +69,7 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, candidateNam
                     {[1, 2, 3, 4, 5].map((star) => (
                         <button
                             key={star}
-                            type="button"
+                            type="button" aria-label={`${star} étoile${star > 1 ? "s" : ""}`} aria-pressed={rating === star}
                             onMouseEnter={() => setHoverRating(star)}
                             onMouseLeave={() => setHoverRating(0)}
                             onClick={() => setRating(star)}
@@ -88,9 +102,11 @@ const ReviewModal: React.FC<ReviewModalProps> = ({ isOpen, onClose, candidateNam
 
             <div className="bg-blue-50 p-3 rounded-xl flex gap-3 items-start text-xs text-blue-800 mb-6">
                 <Quote size={16} className="shrink-0 mt-0.5" />
-                <p>Votre avis aide les autres recruteurs et construit la réputation de l'étudiant sur Rise.</p>
+                <p>Votre avis aide les autres recruteurs et construit la réputation de l'étudiant sur Rise Madagascar.</p>
             </div>
 
+            <p className="mb-4 text-xs text-slate-500">Avis simulé : il reste dans ce navigateur. La mission sera clôturée après enregistrement.</p>
+            {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
             <button 
                 type="submit" 
                 disabled={isSubmitting}

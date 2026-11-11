@@ -51,7 +51,7 @@ const HowItWorks: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-heading font-bold text-gray-900 mb-4">Comment ça marche ?</h2>
-          <p className="text-gray-500 max-w-2xl mx-auto">Trois profils, des parcours adaptés : découvrez ce que vous pouvez faire sur Rise.</p>
+          <p className="text-gray-500 max-w-2xl mx-auto">Trois profils, des parcours adaptés : découvrez ce que vous pouvez faire sur Rise Madagascar.</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6 max-w-6xl mx-auto">

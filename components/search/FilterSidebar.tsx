@@ -239,7 +239,7 @@ export const FilterSidebar: React.FC<FilterSidebarProps> = ({
         {/* Dynamic promotional visual card inside sidebar */}
         <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-5 rounded-3xl border border-slate-800 shadow-md relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -translate-y-6 translate-x-6 pointer-events-none"></div>
-          <p className="text-[10px] font-black tracking-widest text-primary uppercase mb-2">Rise Booster</p>
+          <p className="text-[10px] font-black tracking-widest text-primary uppercase mb-2">Rise Madagascar Booster</p>
           <h3 className="text-sm font-heading font-black tracking-tight leading-snug mb-2">Prêt à attirer les meilleurs candidats ?</h3>
           <p className="text-[11px] text-slate-300 mb-4 font-medium leading-relaxed">Publiez votre offre en moins de 2 minutes et recevez des candidatures qualifiées directement sur votre tableau de bord.</p>
           <a href="#/profile?tab=post-job" className="inline-flex items-center justify-center w-full py-2.5 bg-primary hover:bg-yellow-400 text-slate-950 text-xs font-black rounded-xl transition-all shadow-md shadow-primary/10 hover:shadow-primary/20 hover:-translate-y-0.5 active:translate-y-0">

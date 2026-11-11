@@ -6,7 +6,7 @@ const Testimonials: React.FC = () => {
     {
       name: "Andry R.",
       role: "Étudiant à l'INSCAE",
-      content: "Grâce à Rise, j'ai trouvé mon stage de fin d'études chez Telma en moins de 2 semaines. La plateforme est super intuitive !",
+      content: "Grâce à Rise Madagascar, j'ai trouvé mon stage de fin d'études chez Telma en moins de 2 semaines. La plateforme est super intuitive !",
       image: "https://i.pravatar.cc/150?u=a042581f4e29026704d"
     },
     {
@@ -18,7 +18,7 @@ const Testimonials: React.FC = () => {
     {
       name: "Toky A.",
       role: "Autodidacte Développeur",
-      content: "J'ai pu proposer mes services de création de site web à des petites entreprises locales. Rise m'a aidé à lancer mon activité freelance.",
+      content: "J'ai pu proposer mes services de création de site web à des petites entreprises locales. Rise Madagascar m'a aidé à lancer mon activité freelance.",
       image: "https://i.pravatar.cc/150?u=a04258a2462d826712d"
     }
   ];
@@ -28,7 +28,7 @@ const Testimonials: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-heading font-bold text-gray-900">Ce qu'en pensent les étudiants</h2>
-          <p className="text-gray-500 mt-2">Ils ont trouvé leur voie avec Rise.</p>
+          <p className="text-gray-500 mt-2">Ils ont trouvé leur voie avec Rise Madagascar.</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">

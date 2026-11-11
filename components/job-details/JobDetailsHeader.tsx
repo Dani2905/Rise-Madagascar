@@ -23,7 +23,7 @@ const JobDetailsHeader: React.FC<JobDetailsHeaderProps> = ({ job }) => {
         
         <div className="relative z-10 flex flex-col md:flex-row gap-6 items-start">
         <div className="w-20 h-20 md:w-24 md:h-24 rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex-shrink-0 bg-white p-1">
-            <img src={job.logoUrl} alt={job.company} className="w-full h-full object-cover rounded-xl" />
+            {job.logoUrl ? <img src={job.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" /> : <span className="flex h-full w-full items-center justify-center rounded-xl bg-slate-100 text-2xl font-bold text-slate-600">{(job.company || 'R').slice(0, 2).toUpperCase()}</span>}
         </div>
         <div className="flex-1">
             <div className="flex flex-wrap items-center gap-3 mb-2">

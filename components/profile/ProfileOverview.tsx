@@ -4,26 +4,27 @@ import { User, Briefcase, Award, Code2, Globe, Plus, Star, Quote } from 'lucide-
 
 interface ProfileOverviewProps {
     profile: any;
+    onEdit: () => void;
 }
 
-const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile }) => {
-  const hasSkills = profile.skills && profile.skills.length > 0;
-  const hasLanguages = profile.languages && profile.languages.length > 0;
+const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile, onEdit }) => {
+  const hasSkills = Array.isArray(profile.skills) && profile.skills.length > 0;
+  const hasLanguages = Array.isArray(profile.languages) && profile.languages.length > 0;
   
   // Normaliser l'éducation : soit du tableau education, soit des champs simples d'inscription
-  let educationList = profile.education || [];
+  let educationList = Array.isArray(profile.education) ? [...profile.education] : [];
   if (educationList.length === 0 && profile.school) {
       educationList.push({
           id: 'default',
           degree: profile.studyLevel ? `Niveau ${profile.studyLevel}` : 'Étudiant',
           school: profile.school,
-          date: new Date().getFullYear().toString(),
+          date: 'En cours',
           mention: profile.studyField
       });
   }
 
-  const hasExperience = profile.experiences && profile.experiences.length > 0;
-  const reviews = profile.reviews || [];
+  const hasExperience = Array.isArray(profile.experiences) && profile.experiences.length > 0;
+  const reviews = Array.isArray(profile.reviews) ? profile.reviews.filter((review: any) => review && typeof review.reviewerName === 'string') : [];
   const rating = profile.rating || 0;
 
   return (
@@ -39,7 +40,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile }) => {
             ) : (
                 <div className="text-center py-6 border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
                     <p className="text-gray-400 text-sm mb-2">Vous n'avez pas encore ajouté de bio.</p>
-                    <button className="text-primary font-bold text-sm hover:underline">Ajouter une description</button>
+                    <button type="button" onClick={onEdit} className="text-yellow-700 font-bold text-sm hover:underline">Ajouter une description</button>
                 </div>
             )}
         </div>
@@ -109,7 +110,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile }) => {
                             ))}
                         </div>
                     ) : (
-                        <button className="w-full py-3 border border-dashed border-gray-200 text-gray-400 rounded-xl text-sm hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2">
+                        <button type="button" onClick={onEdit} className="w-full py-3 border border-dashed border-gray-200 text-gray-400 rounded-xl text-sm hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2">
                             <Plus size={16} /> Ajouter des compétences
                         </button>
                     )}
@@ -129,7 +130,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile }) => {
                             ))}
                         </div>
                     ) : (
-                         <p className="text-sm text-gray-400 italic">Français (par défaut)</p>
+                         <p className="text-sm text-gray-400 italic">Aucune langue renseignée.</p>
                     )}
                 </div>
             </div>
@@ -151,7 +152,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile }) => {
                         ))}
                     </div>
                 ) : (
-                    <button className="w-full py-3 border border-dashed border-gray-200 text-gray-400 rounded-xl text-sm hover:border-yellow-500 hover:text-yellow-500 transition-colors flex items-center justify-center gap-2">
+                    <button type="button" onClick={onEdit} className="w-full py-3 border border-dashed border-gray-200 text-gray-400 rounded-xl text-sm hover:border-yellow-500 hover:text-yellow-500 transition-colors flex items-center justify-center gap-2">
                         <Plus size={16} /> Ajouter une formation
                     </button>
                 )}
@@ -165,8 +166,8 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile }) => {
             </h3>
             {hasExperience ? (
                 <div className="space-y-6">
-                    {profile.experiences.map((exp: any) => (
-                        <div key={exp.id} className="flex flex-col sm:flex-row gap-4 group">
+                    {profile.experiences.map((exp: any, idx: number) => (
+                        <div key={exp.id ?? idx} className="flex flex-col sm:flex-row gap-4 group">
                             <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 border border-gray-100 shrink-0 group-hover:bg-slate-900 group-hover:text-white transition-colors">
                                 <Briefcase size={20} />
                             </div>
@@ -186,7 +187,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile }) => {
                     <Briefcase className="mx-auto text-gray-300 mb-3" size={32} />
                     <p className="text-gray-500 font-medium mb-1">Aucune expérience renseignée</p>
                     <p className="text-xs text-gray-400 mb-4">Ajoutez vos stages, jobs d'été ou projets freelance.</p>
-                    <button className="px-4 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors">
+                    <button type="button" onClick={onEdit} className="px-4 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-colors">
                         Ajouter une expérience
                     </button>
                 </div>

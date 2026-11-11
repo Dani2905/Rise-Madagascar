@@ -9,9 +9,9 @@ const RecruiterFeatures: React.FC = () => {
                <span className="inline-block px-4 py-1.5 rounded-full bg-primary/20 text-slate-900 font-bold text-sm mb-4">
                   Pour Tous
                </span>
-               <h2 className="text-3xl font-heading font-bold text-gray-900 mb-4">Pourquoi recruter sur Rise ?</h2>
+               <h2 className="text-3xl font-heading font-bold text-gray-900 mb-4">Pourquoi recruter sur Rise Madagascar ?</h2>
                <p className="text-gray-500 max-w-2xl mx-auto">
-                  Que vous soyez DRH d'un grand groupe ou un parent cherchant un prof de maths, Rise vous aide à présenter vos besoins aux étudiants.
+                  Que vous soyez DRH d'un grand groupe ou un parent cherchant un prof de maths, Rise Madagascar vous aide à présenter vos besoins aux étudiants.
                </p>
             </div>
 

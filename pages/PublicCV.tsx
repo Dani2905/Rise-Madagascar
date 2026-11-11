@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Mail, Phone, Globe, Download, ArrowLeft, Printer, Linkedin, ExternalLink, Calendar, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getWebsiteUrl } from '../utils/website';
 
 const PublicCV: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -10,20 +11,23 @@ const PublicCV: React.FC = () => {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      navigate('/login');
+      navigate('/login', { replace: true, state: { returnTo: '/cv/preview' } });
     }
+    if (!isLoading && user && user.role !== 'student') navigate('/profile', { replace: true });
   }, [user, isLoading, navigate]);
 
-  if (!user) return null;
+  if (!user || user.role !== 'student') return null;
 
   const handlePrint = () => {
     window.print();
   };
 
   // Fallback data if fields are empty
-  const avatarUrl = user.avatarUrl || `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}&background=0f172a&color=fff&size=128`;
+  const avatarUrl = user.avatarUrl;
+  const initials = `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || '?';
+  const websiteUrl = getWebsiteUrl(user.website);
   const title = user.title || (user.studyField ? `Étudiant en ${user.studyField}` : "Étudiant");
-  const educationList = user.education || [];
+  const educationList = Array.isArray(user.education) ? [...user.education] : [];
 
   // If no education listed but school field exists (from registration)
   if (educationList.length === 0 && user.school) {
@@ -40,15 +44,15 @@ const PublicCV: React.FC = () => {
     <div className="min-h-screen bg-slate-100 py-8 font-sans print:bg-white print:py-0">
       
       {/* Navigation & Actions (Hidden when printing) */}
-      <div className="max-w-[210mm] mx-auto mb-6 px-4 md:px-0 flex justify-between items-center print:hidden">
+      <div className="max-w-[210mm] mx-auto mb-6 px-4 md:px-0 flex flex-wrap gap-4 justify-between items-center print:hidden">
          <button 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/profile')}
             className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-bold transition-colors"
          >
             <ArrowLeft size={20} /> Retour
          </button>
          
-         <div className="flex gap-3">
+         <div className="flex flex-wrap gap-3">
              <button 
                 onClick={handlePrint}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-slate-700 rounded-lg font-bold hover:bg-gray-50 transition-colors shadow-sm"
@@ -59,11 +63,12 @@ const PublicCV: React.FC = () => {
                 onClick={handlePrint}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg font-bold hover:bg-slate-800 transition-colors shadow-lg"
              >
-                <Download size={18} /> Télécharger PDF
+                <Download size={18} /> Imprimer / enregistrer en PDF
              </button>
          </div>
       </div>
 
+      <p className="max-w-[210mm] mx-auto px-4 mb-4 text-sm text-slate-600 print:hidden">Aperçu local : ce CV n’est pas publié sur Internet. Pour obtenir un PDF, choisissez « Enregistrer en PDF » dans la fenêtre d’impression.</p>
       {/* CV A4 Container */}
       <div ref={cvRef} className="max-w-[210mm] mx-auto bg-white shadow-2xl print:shadow-none print:w-full overflow-hidden rounded-none md:rounded-xl min-h-[297mm] flex flex-col md:flex-row">
           
@@ -71,7 +76,7 @@ const PublicCV: React.FC = () => {
           <div className="w-full md:w-[35%] bg-slate-900 text-white p-8 print:w-[35%] print:bg-slate-900 print:text-white print-color-adjust">
                <div className="flex flex-col items-center text-center mb-10">
                    <div className="w-32 h-32 rounded-full border-4 border-white/20 mb-4 overflow-hidden bg-slate-800">
-                       <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                       {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : <span className="w-full h-full flex items-center justify-center text-3xl font-bold">{initials}</span>}
                    </div>
                    <h1 className="text-2xl font-heading font-bold uppercase tracking-wide mb-2">{user.firstName} <br/> {user.lastName}</h1>
                    <p className="text-primary font-medium text-sm">{title}</p>
@@ -92,14 +97,14 @@ const PublicCV: React.FC = () => {
                                    <span>{user.phone}</span>
                                </li>
                            )}
-                           <li className="flex items-center gap-3">
+                           {user.location && <li className="flex items-center gap-3">
                                <MapPin size={16} className="text-primary shrink-0" /> 
-                               <span>{user.location || 'Madagascar'}</span>
-                           </li>
-                           {user.website && (
+                               <span>{user.location}</span>
+                           </li>}
+                           {websiteUrl && (
                                <li className="flex items-center gap-3">
                                    <Globe size={16} className="text-primary shrink-0" /> 
-                                   <a href={user.website} target="_blank" rel="noreferrer" className="hover:text-white underline decoration-gray-600 underline-offset-4">Site Web</a>
+                                   <a href={websiteUrl} target="_blank" rel="noreferrer" className="hover:text-white underline decoration-gray-600 underline-offset-4">Site Web</a>
                                </li>
                            )}
                        </ul>
@@ -205,7 +210,7 @@ const PublicCV: React.FC = () => {
       
       {/* Footer / Branding for Print */}
       <div className="text-center mt-8 text-xs text-gray-400 print:block hidden">
-          CV généré via Rise Madagascar - rise.mg
+          CV généré via Rise Madagascar
       </div>
 
     </div>

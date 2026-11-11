@@ -10,7 +10,7 @@ const SolutionsSection: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-heading font-bold text-gray-900 mb-4">Une plateforme, trois solutions</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">Rise s'adapte à vos besoins pour gagner du temps.</p>
+          <p className="text-gray-600 max-w-2xl mx-auto">Rise Madagascar s'adapte à vos besoins pour gagner du temps.</p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
@@ -23,7 +23,7 @@ const SolutionsSection: React.FC = () => {
               <Briefcase size={28} />
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-3">Stages & Alternance</h3>
-            <p className="text-gray-600">Pour valider votre année. Découvrez les offres de stage publiées par les entreprises sur Rise.</p>
+            <p className="text-gray-600">Pour valider votre année. Découvrez les offres de stage publiées par les entreprises sur Rise Madagascar.</p>
           </div>
 
           {/* Petits Boulots */}

@@ -1,91 +1,53 @@
-
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { getOwnedCandidate, readLocalArray } from '../utils/recruiterDashboard';
+import { getCurrentLocalSession } from '../utils/subscription';
 
 export const useCandidateDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isLoggedIn, user } = useAuth();
-  
+  const location = useLocation();
+  const { isLoggedIn, isLoading, user } = useAuth();
   const [candidate, setCandidate] = useState<any>(null);
-  const [status, setStatus] = useState<'pending' | 'interview' | 'rejected' | 'accepted' | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
   const [isLiveProfile, setIsLiveProfile] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-    const idParam = id; // string from URL
-
-    // 1. Tenter de trouver une APPLICATION correspondante (Snapshot)
-    const allApps = JSON.parse(localStorage.getItem('rise_applications') || '[]');
-    const appSnapshot = allApps.find((app: any) => app.id.toString() === idParam);
-
-    // 2. Tenter de trouver un UTILISATEUR correspondant (Live User)
-    const allUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
-    let liveUser = null;
-
-    if (appSnapshot) {
-        liveUser = allUsers.find((u: any) => 
-            (appSnapshot.applicantId && u.id && u.id.toString() === appSnapshot.applicantId.toString()) ||
-            u.email === appSnapshot.email
-        );
-        setStatus(appSnapshot.status);
-    } else {
-        liveUser = allUsers.find((u: any) => u.id.toString() === idParam);
-    }
-
-    if (liveUser) {
-        setCandidate({
-            ...appSnapshot, 
-            ...liveUser,    
-            role: liveUser.title || liveUser.role || appSnapshot?.role,
-            location: liveUser.location || appSnapshot?.location,
-            name: `${liveUser.firstName} ${liveUser.lastName}`,
-            avatarUrl: liveUser.avatarUrl || appSnapshot?.avatarUrl,
-            // Important pour la messagerie : garder l'ID réel de l'utilisateur
-            realUserId: liveUser.id 
-        });
-        setIsLiveProfile(true);
-    } else if (appSnapshot) {
-        setCandidate(appSnapshot);
-        setIsLiveProfile(false);
-    } else {
-        setCandidate(null);
-    }
-
-  }, [id]);
+    if (isLoading) return;
+    if (!isLoggedIn) { navigate('/login', { replace: true, state: { returnTo: `${location.pathname}${location.search}` } }); return; }
+    const refresh = () => {
+      try {
+        if (!getCurrentLocalSession(user)) throw new Error();
+        const apps = readLocalArray('rise_applications'), users = readLocalArray('rise_db_users'), jobs = readLocalArray('rise_jobs');
+        const app = id != null ? getOwnedCandidate(user, id, apps, jobs, users) : null;
+        if (!app) { setCandidate(null); setError('Cette candidature est introuvable ou ne correspond pas à une de vos offres.'); setLoading(false); return; }
+        const students = users.filter(u => u?.role === 'student' && (app.applicantId != null ? u.id != null && String(u.id) === String(app.applicantId) : typeof app.email === 'string' && typeof u.email === 'string' && u.email.toLowerCase() === app.email.toLowerCase()));
+        const live = students.length === 1 ? students[0] : null;
+        // Ne jamais recopier les identifiants ni les données de compte dans la fiche.
+        setCandidate({ id: app.id, jobId: app.jobId, applicantId: app.applicantId, realUserId: live?.id, name: live ? `${live.firstName || ''} ${live.lastName || ''}`.trim() : app.name || 'Candidat', role: live?.title || app.role || 'Étudiant', location: live?.location || app.location || '', avatarUrl: live?.avatarUrl || app.avatarUrl || '', email: live?.email || app.email || '', phone: live?.phone || app.phone || '', school: live?.school || app.school || '', bio: live?.bio || app.bio || '', skills: Array.isArray(live?.skills) ? live.skills : Array.isArray(app.skills) ? app.skills : [], experiences: Array.isArray(live?.experiences) ? live.experiences : Array.isArray(app.experiences) ? app.experiences : [], reviews: Array.isArray(live?.reviews) ? live.reviews : [], rating: live?.rating || 0, reviewCount: live?.reviewCount || 0 });
+        setStatus(app.status || 'pending'); setIsLiveProfile(!!live); setError(''); setLoading(false);
+      } catch { setCandidate(null); setLoading(false); setError('Les données locales de candidature sont illisibles.'); }
+    };
+    refresh(); window.addEventListener('storage', refresh); window.addEventListener('focus', refresh);
+    return () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); };
+  }, [id, isLoading, isLoggedIn, user, navigate, location.pathname, location.search]);
 
   const handleContact = () => {
-      if (!isLoggedIn || !candidate) return;
-      
-      const targetId = candidate.realUserId || candidate.applicantId;
-      
-      if(targetId) {
-          navigate(`/messages?partner=${targetId}`);
-      } else {
-          window.Toastify({ text: "Impossible de contacter ce profil (compte supprimé).", style: { background: "#ef4444" } }).showToast();
-      }
+    if (!isLoggedIn || !getCurrentLocalSession(user) || !candidate?.realUserId) { setError('Le compte local du candidat est introuvable.'); return; }
+    navigate(`/messages?partner=${encodeURIComponent(String(candidate.realUserId))}`);
   };
-
-  const handleStatusChange = (newStatus: 'pending' | 'interview' | 'rejected' | 'accepted', label: string) => {
-      setStatus(newStatus);
-      if (candidate.jobId) {
-          const allApps = JSON.parse(localStorage.getItem('rise_applications') || '[]');
-          const updatedApps = allApps.map((app: any) => 
-              (app.id === candidate.id) ? { ...app, status: newStatus } : app
-          );
-          localStorage.setItem('rise_applications', JSON.stringify(updatedApps));
-      }
-      window.Toastify({ text: `Statut mis à jour : ${label}`, style: { background: "#334155" } }).showToast();
+  const handleStatusChange = (newStatus: 'pending' | 'interview' | 'rejected' | 'accepted', _label: string) => {
+    try {
+      if (!getCurrentLocalSession(user)) throw new Error();
+      const apps = readLocalArray('rise_applications'), jobs = readLocalArray('rise_jobs'), users = readLocalArray('rise_db_users');
+      const app = id != null ? getOwnedCandidate(user, id, apps, jobs, users) : null;
+      if (!app || app.status === 'completed') throw new Error();
+      localStorage.setItem('rise_applications', JSON.stringify(apps.map(a => a === app ? { ...a, status: newStatus, updatedAt: new Date().toISOString() } : a)));
+      setStatus(newStatus); setError('');
+    } catch { setError('Impossible de modifier cette candidature dans ce navigateur.'); }
   };
-
-  return {
-      candidate,
-      status,
-      isLiveProfile,
-      handleContact,
-      handleStatusChange,
-      navigate,
-      isLoggedIn
-  };
+  return { candidate, status, isLiveProfile, handleContact, handleStatusChange, navigate, isLoggedIn, loading, error };
 };

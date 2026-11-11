@@ -37,7 +37,7 @@ const ProjectSubmissionForm: React.FC = () => {
                     <p className="text-slate-400 leading-relaxed text-sm">
                         {isRecruiter 
                             ? "Découvrez les pépites de demain. Ces étudiants cherchent des mentors et des financements."
-                            : "Vous avez une idée qui peut changer les choses ? C'est le moment de la partager avec la communauté Rise."
+                            : "Vous avez une idée qui peut changer les choses ? C'est le moment de la partager avec la communauté Rise Madagascar."
                         }
                     </p>
                 </div>

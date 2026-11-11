@@ -37,7 +37,7 @@ const NavLinks: React.FC<NavLinksProps> = ({ className, mobile = false, onLinkCl
       { to: "/", label: "Accueil", end: true },
       { to: "/search", label: "Offres & Missions" },
       { to: "/companies", label: "Entreprises" },
-      { to: "/resources", label: "Ressources" },
+      { to: "/resources", label: "Projets" },
       { to: "/about", label: "À Propos" },
   ];
 

@@ -1,4 +1,6 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { getPublicStudent } from '../../utils/publicStudent';
 import { Rocket, MapPin, Share2, Heart } from 'lucide-react';
 import { Project } from '../../data/resourcesData';
 import { useProjectLikes } from '../../hooks/useProjectLikes';
@@ -8,6 +10,8 @@ interface ProjectHeaderProps {
 }
 
 const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
+  const location = useLocation();
+  const student = project.ownerId != null ? getPublicStudent(String(project.ownerId)) : null;
   const { liked: isLiked, count: likes, toggle } = useProjectLikes(project.id, project.likes);
   const handleShare = async () => {
       try {
@@ -48,7 +52,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
                             {project.title}
                         </h1>
                         <p className="text-lg text-slate-300 font-medium max-w-2xl">
-                            Porté par <span className="text-white">{project.student}</span> {project.school && `• ${project.school}`}
+                            Porté par {student ? <Link to={`/students/${encodeURIComponent(String(student.id))}`} state={{ fromProject: location.pathname }} className="text-white underline decoration-primary underline-offset-4 hover:text-primary">{project.student}</Link> : <span className="text-white">{project.student}</span>} {project.school && `• ${project.school}`}
                         </p>
                     </div>
                 </div>

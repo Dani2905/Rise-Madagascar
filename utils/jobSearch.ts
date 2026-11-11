@@ -2,6 +2,7 @@ import { MOCK_JOBS } from '../data/jobsData';
 import { Job } from '../types';
 import { inferProvince, matchesLocation } from './provinces';
 import { isDemoRecruiter } from './demoRecruiter';
+import { resolveRecruiterJobOwner } from './recruiterDashboard';
 
 export const normalizeSearchText = (value: string) => value
   .normalize('NFD')
@@ -11,15 +12,16 @@ export const normalizeSearchText = (value: string) => value
 // Source commune aux suggestions et aux résultats de recherche.
 export function getAvailableJobs(): Job[] {
   let customJobs: Job[] = [];
+  let users: any[] = [];
   let demoOwnerIds = new Set<string>();
   try {
-    const users = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
-    if (Array.isArray(users)) demoOwnerIds = new Set(users.filter(isDemoRecruiter).filter(u => u.id != null).map(u => String(u.id)));
+    const parsedUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
+    if (Array.isArray(parsedUsers)) { users = parsedUsers; demoOwnerIds = new Set(users.filter(isDemoRecruiter).filter(u => u.id != null).map(u => String(u.id))); }
   } catch { /* Les offres restent accessibles si les profils sont illisibles. */ }
   try {
     const parsed = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-    customJobs = Array.isArray(parsed) ? parsed.filter(j => j && typeof j === 'object').map(j => ({
-      ...j, title: typeof j.title === 'string' ? j.title : 'Offre sans titre',
+    customJobs = Array.isArray(parsed) ? parsed.filter(j => j && typeof j === 'object').map(j => { const owner = resolveRecruiterJobOwner(j, users); return ({
+      ...j, ownerId: owner?.id, title: typeof j.title === 'string' ? j.title : 'Offre sans titre',
       company: typeof j.company === 'string' ? j.company : 'Recruteur',
       location: typeof j.location === 'string' ? j.location : '',
       province: typeof j.province === 'string' ? j.province : undefined,
@@ -32,8 +34,8 @@ export function getAvailableJobs(): Job[] {
       duration: typeof j.duration === 'string' ? j.duration : undefined,
       remote: j.remote === true,
       isUrgent: j.isUrgent === true,
-      isDemo: j.isDemo === true || (j.ownerId != null && demoOwnerIds.has(String(j.ownerId)))
-    })) : [];
+      isDemo: j.isDemo === true || (owner != null && demoOwnerIds.has(String(owner.id)))
+    }); }) : [];
   } catch (error) {
     console.error('Erreur lecture offres', error);
   }
@@ -54,10 +56,12 @@ export function getAvailableJobs(): Job[] {
 // Les compteurs, la vitrine et les profils utilisent les mêmes offres actives.
 export function getActiveJobsForOwner(ownerId: string | number): Job[] {
   const seen = new Set<string>();
+  let duplicates = new Set<string>();
+  try { const all = JSON.parse(localStorage.getItem('rise_jobs') || '[]'); if (Array.isArray(all)) { const counts = new Map<string, number>(); for (const job of all) if (job?.id != null) counts.set(String(job.id), (counts.get(String(job.id)) || 0) + 1); duplicates = new Set([...counts].filter(([, n]) => n > 1).map(([id]) => id)); } } catch { /* aucune offre locale lisible */ }
   return getAvailableJobs().filter(job => {
     if (job.ownerId == null || String(job.ownerId) !== String(ownerId) || job.id == null || !String(job.id).trim()) return false;
     const id = String(job.id);
-    if (seen.has(id)) return false;
+    if (duplicates.has(id) || seen.has(id)) return false;
     seen.add(id);
     return true;
   });

@@ -5,6 +5,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getRegisteredRecruiters } from '../utils/registeredCompanies';
 import { matchesRecruiterQuery } from '../utils/recruiterSearch';
+import { useFollowedRecruiters } from '../hooks/useFollowedRecruiters';
+import FollowRecruiterButton from '../components/follow/FollowRecruiterButton';
 
 import CompaniesHero from '../components/companies/CompaniesHero';
 import CompanyCard from '../components/companies/CompanyCard';
@@ -14,6 +16,7 @@ import RecruiterFeatures from '../components/companies/RecruiterFeatures';
 const Companies: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const followState = useFollowedRecruiters();
   const publish = (type: 'company' | 'individual') => navigate(user && user.role !== 'student' ? '/dashboard?tab=post-job' : `/register?type=${type}`);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') === 'individuals' ? 'individuals' : 'companies';
@@ -91,7 +94,7 @@ const Companies: React.FC = () => {
              filteredCompanies.length > 0 ? (
                 <div className="flex flex-col gap-4 animate-fade-in">
                     {filteredCompanies.map(company => (
-                        <CompanyCard key={company.id} company={{ ...company, logoUrl: company.logoUrl || '' }} fromDirectory={fromDirectory} />
+                        <CompanyCard key={company.id} company={{ ...company, logoUrl: company.logoUrl || '' }} fromDirectory={fromDirectory} followAction={<FollowRecruiterButton id={String(company.id)} name={company.name} isLocalProfile={true} followState={followState} compact />} />
                     ))}
                 </div>
              ) : (
@@ -115,7 +118,7 @@ const Companies: React.FC = () => {
              <div className="grid md:grid-cols-2 gap-6 animate-fade-in">
                 {filteredIndividuals.length === 0 && <div className="text-center py-12 bg-white rounded-3xl border border-dashed border-gray-200 text-slate-500"><p>{individuals.length === 0 ? 'Aucun particulier inscrit dans ce navigateur.' : 'Aucun particulier trouvé pour ces critères.'}</p>{hasFilters && <button type="button" onClick={resetFilters} className="mt-4 font-bold text-slate-900 underline">Réinitialiser les filtres</button>}</div>}
                 {filteredIndividuals.map(ind => (
-                    <IndividualCard key={ind.id} individual={{ ...ind, activeOffers: ind.jobs, verified: false }} fromDirectory={fromDirectory} />
+                    <IndividualCard key={ind.id} individual={{ ...ind, activeOffers: ind.jobs, verified: false }} fromDirectory={fromDirectory} followAction={<FollowRecruiterButton id={String(ind.id)} name={ind.name} isLocalProfile={true} followState={followState} compact />} />
                 ))}
                 
                 {/* CTA Card for new individuals */}
@@ -152,7 +155,7 @@ const Companies: React.FC = () => {
               </div>
               <h2 className="text-4xl font-heading font-extrabold text-white mb-6">Trouvez la perle rare</h2>
               <p className="text-slate-300 mb-10 text-xl font-light">
-                  Rejoignez la communauté Rise pour dénicher les pépites de demain ou simplement obtenir de l'aide au quotidien.
+                  Rejoignez la communauté Rise Madagascar pour dénicher les pépites de demain ou simplement obtenir de l'aide au quotidien.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   {user?.role !== 'student' && <button type="button" onClick={() => publish(user?.role === 'individual' ? 'individual' : 'company')} className="px-8 py-4 bg-primary text-slate-900 rounded-xl font-bold text-lg hover:bg-yellow-400 transition-all shadow-lg shadow-primary/20 transform hover:-translate-y-1">

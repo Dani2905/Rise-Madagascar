@@ -52,7 +52,7 @@ const Register: React.FC = () => {
                     Rejoignez l'aventure
                 </h1>
                 <p className="mt-2 text-sm text-gray-500">
-                    Créez votre profil pour découvrir Rise.
+                    Créez votre profil pour découvrir Rise Madagascar.
                 </p>
             </div>
 

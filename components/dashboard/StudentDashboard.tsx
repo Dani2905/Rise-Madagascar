@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { User, FileText, Settings, LogOut, Rocket } from 'lucide-react';
+import React, { useState } from 'react';
+import { User, FileText, Settings, LogOut, Rocket, Bookmark } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import ProfileHeader from '../profile/ProfileHeader';
 import ProfileStats from '../profile/ProfileStats';
@@ -7,25 +7,20 @@ import ProfileOverview from '../profile/ProfileOverview';
 import ProfileApplications from '../profile/ProfileApplications';
 import ProfileProjects from '../profile/ProfileProjects';
 import ProfileSettings from '../profile/ProfileSettings';
+import FollowedRecruiters from '../profile/FollowedRecruiters';
 import { useAuth } from '../../context/AuthContext';
 
 const StudentDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'applications' | 'projects' | 'settings'>('overview');
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const tab = searchParams.get('tab');
+  const activeTab = (['overview', 'applications', 'projects', 'following', 'settings'].includes(tab || '') ? tab : 'overview') as 'overview' | 'applications' | 'projects' | 'following' | 'settings';
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
   const action = searchParams.get('action'); // Capture l'action 'new' si présente
 
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && ['overview', 'applications', 'projects', 'settings'].includes(tab)) {
-        setActiveTab(tab as any);
-    }
-  }, [searchParams]);
-
-  const handleTabChange = (tab: 'overview' | 'applications' | 'projects' | 'settings') => {
-      setActiveTab(tab);
+  const handleTabChange = (tab: 'overview' | 'applications' | 'projects' | 'following' | 'settings') => {
       // Clean URL params when switching tabs manually
       navigate(`/profile?tab=${tab}`); 
   };
@@ -40,11 +35,12 @@ const StudentDashboard: React.FC = () => {
   return (
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         
+        {(user.isDemo === true || user.email?.trim().toLowerCase() === 'etudiant@rise.mg') && <p className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><strong>Profil de démonstration :</strong> les informations proposées pour Rary Rakoto sont fictives et peuvent être modifiées.</p>}
         {/* Header Section */}
-        <ProfileHeader profile={user} />
+        <ProfileHeader profile={user} isEditModalOpen={isEditModalOpen} setIsEditModalOpen={setIsEditModalOpen} />
 
         {/* Stats Row */}
-        <ProfileStats stats={user.stats} />
+        <ProfileStats applications={user.applications} projects={user.myProjects} />
 
         {/* MOBILE NAVIGATION (Horizontal Scroll) */}
         <div className="lg:hidden sticky top-[64px] z-30 bg-gray-50/95 backdrop-blur-sm pt-2 pb-4 -mx-4 px-4 mb-4 overflow-x-auto scrollbar-hide border-b border-gray-200/50">
@@ -79,6 +75,7 @@ const StudentDashboard: React.FC = () => {
                 >
                     <Rocket size={16} /> Projets
                 </button>
+                <button onClick={() => handleTabChange('following')} className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all border ${activeTab === 'following' ? 'bg-primary text-slate-900 border-primary shadow-sm' : 'bg-white text-gray-600 border-gray-200'}`}><Bookmark size={16} /> Suivis</button>
                 <button
                     onClick={() => handleTabChange('settings')}
                     className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold transition-all border ${
@@ -128,6 +125,7 @@ const StudentDashboard: React.FC = () => {
                         >
                             <Rocket size={18} /> Mes Projets
                         </button>
+                        <button onClick={() => handleTabChange('following')} className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === 'following' ? 'bg-primary text-slate-900 shadow-sm' : 'text-gray-500 hover:bg-gray-50 hover:text-slate-900'}`}><Bookmark size={18} /> Recruteurs suivis</button>
                         <button
                             onClick={() => handleTabChange('settings')}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
@@ -152,7 +150,8 @@ const StudentDashboard: React.FC = () => {
 
             {/* Main Content Area */}
             <div className="lg:col-span-9">
-                {activeTab === 'overview' && <ProfileOverview profile={user} />}
+                {activeTab === 'following' && <FollowedRecruiters />}
+                {activeTab === 'overview' && <ProfileOverview profile={user} onEdit={() => setIsEditModalOpen(true)} />}
                 {activeTab === 'applications' && <ProfileApplications applications={user.applications} />}
                 {activeTab === 'projects' && <ProfileProjects projects={user.myProjects} initialCreateMode={action === 'new'} />}
                 {activeTab === 'settings' && <ProfileSettings />}

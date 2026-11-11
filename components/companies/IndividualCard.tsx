@@ -4,7 +4,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Individual } from '../../data/companiesData';
 import { useAuth } from '../../context/AuthContext';
 
-const IndividualCard: React.FC<{ individual: Individual; fromDirectory?: string }> = ({ individual, fromDirectory }) => {
+const IndividualCard: React.FC<{ individual: Individual; fromDirectory?: string; followAction?: React.ReactNode }> = ({ individual, fromDirectory, followAction }) => {
   const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,11 +22,12 @@ const IndividualCard: React.FC<{ individual: Individual; fromDirectory?: string 
         {individual.needs.length > 0 && <div className="flex flex-wrap gap-2 mb-3">{individual.needs.map(need => <span key={need} className="text-xs font-semibold bg-gray-50 text-gray-600 px-2 py-1 rounded border border-gray-100">{need}</span>)}</div>}
         <p className="text-sm text-gray-600 leading-relaxed bg-yellow-50/50 p-3 rounded-xl border border-yellow-50">{individual.description}</p>
       </div>
-      <p className="text-xs text-slate-500 mb-3">Messagerie simulée, enregistrée dans ce navigateur.</p>
+      <p className="text-xs text-slate-500 mb-3">Contact réservé aux candidats acceptés ou aux étudiants contactés en premier par ce particulier. Échanges simulés dans ce navigateur.</p>
       <div className="flex flex-col sm:flex-row gap-2">
         <Link to={`/companies/${id}${individual.activeOffers ? '?view=offers' : ''}`} state={fromDirectory ? { fromDirectory } : undefined} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 text-sm">{individual.activeOffers ? 'Voir les annonces' : 'Voir le profil'} <ArrowRight size={15} /></Link>
-        {String(user?.id) !== String(individual.id) && <button type="button" onClick={() => isLoggedIn ? navigate(`/messages?partner=${id}`) : navigate('/login', { state: { returnTo: `/companies/${id}`, returnState: { fromDirectory: fromDirectory || `${location.pathname}${location.search}` } } })} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-slate-700 font-bold hover:bg-slate-50 text-sm"><MessageCircle size={15} /> {isLoggedIn ? 'Contacter' : 'Se connecter'}</button>}
+        {(!isLoggedIn || user?.role === 'student') && String(user?.id) !== String(individual.id) && <button type="button" onClick={() => isLoggedIn ? navigate(`/messages?partner=${id}`) : navigate('/login', { state: { returnTo: `/companies/${id}`, returnState: { fromDirectory: fromDirectory || `${location.pathname}${location.search}` } } })} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-slate-700 font-bold hover:bg-slate-50 text-sm"><MessageCircle size={15} /> {isLoggedIn ? 'Contacter' : 'Se connecter'}</button>}
       </div>
+      <div className="mt-2">{followAction}</div>
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, Loader2, Plus, Trash2, GraduationCap, Briefcase, Globe, Code2 } from 'lucide-react';
 import { FloatingInput, FloatingTextArea } from '../FloatingInput';
+import { madagascarToday } from '../../utils/registration';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -31,10 +32,12 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
   const [skillInput, setSkillInput] = useState('');
   const [langInput, setLangInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
   // Initialiser le formulaire avec les données actuelles à l'ouverture
   useEffect(() => {
     if (isOpen && profile) {
+      setError(''); setSkillInput(''); setLangInput('');
       setFormData({
         firstName: profile.firstName || '',
         lastName: profile.lastName || '',
@@ -47,10 +50,10 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         location: profile.location || '',
         phone: profile.phone || '',
         bio: profile.bio || '',
-        skills: profile.skills || [],
-        languages: profile.languages || [],
-        education: profile.education || [],
-        experiences: profile.experiences || []
+        skills: Array.isArray(profile.skills) ? [...profile.skills] : [],
+        languages: Array.isArray(profile.languages) ? [...profile.languages] : [],
+        education: Array.isArray(profile.education) ? [...profile.education] : [],
+        experiences: Array.isArray(profile.experiences) ? [...profile.experiences] : []
       });
     }
   }, [isOpen, profile]);
@@ -128,12 +131,18 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    if (!formData.firstName.trim() || !formData.lastName.trim()) { setError('Veuillez renseigner votre prénom et votre nom.'); return; }
+    if (formData.birthDate) {
+      const parsed = /^\d{4}-\d{2}-\d{2}$/.test(formData.birthDate) ? new Date(`${formData.birthDate}T00:00:00Z`) : new Date(NaN);
+      if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== formData.birthDate || formData.birthDate > madagascarToday()) { setError('Veuillez renseigner une date de naissance valide, qui ne soit pas dans le futur.'); return; }
+    }
     setIsSaving(true);
-    setTimeout(() => {
-      onSave(formData);
-      setIsSaving(false);
+    try {
+      onSave({ ...formData, firstName: formData.firstName.trim(), lastName: formData.lastName.trim() });
       onClose();
-    }, 800);
+    } catch { setError('Impossible d’enregistrer le profil dans ce navigateur.'); }
+    finally { setIsSaving(false); }
   };
 
   return (
@@ -145,19 +154,19 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
       ></div>
 
       {/* Modal Content - Full screen on mobile, limited on desktop */}
-      <div className="relative bg-white w-full h-full md:h-auto md:max-h-[90vh] md:rounded-3xl md:max-w-3xl overflow-hidden shadow-2xl animate-fade-in flex flex-col">
+      <div role="dialog" aria-modal="true" aria-labelledby="edit-profile-title" className="relative bg-white w-full h-full md:h-auto md:max-h-[90vh] md:rounded-3xl md:max-w-3xl overflow-hidden shadow-2xl animate-fade-in flex flex-col">
         
         {/* Header */}
         <div className="sticky top-0 bg-white z-20 px-4 py-4 md:px-8 md:py-5 border-b border-gray-100 flex justify-between items-center shadow-sm flex-shrink-0">
-            <h2 className="text-lg md:text-xl font-heading font-bold text-slate-900">Modifier mon profil</h2>
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
+            <h2 id="edit-profile-title" className="text-lg md:text-xl font-heading font-bold text-slate-900">Modifier mon profil</h2>
+            <button type="button" aria-label="Fermer" onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
                 <X size={24} />
             </button>
         </div>
 
         {/* Form Container with Scroll */}
         <div className="flex-1 overflow-y-auto">
-            <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-8 pb-24 md:pb-8">
+            <form id="edit-profile-form" onSubmit={handleSubmit} className="p-4 md:p-8 space-y-8 pb-24 md:pb-8">
                 
                 {/* 1. Informations Personnelles */}
                 <section>
@@ -168,7 +177,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FloatingInput id="email" label="Email (Lecture seule)" value={formData.email} disabled className="bg-gray-50 text-gray-500 border-gray-200 cursor-not-allowed" />
-                        <FloatingInput id="birthDate" type="date" label="Date de naissance" value={formData.birthDate} onChange={handleChange} />
+                        <FloatingInput id="birthDate" type="date" max={madagascarToday()} label="Date de naissance" value={formData.birthDate} onChange={handleChange} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FloatingInput id="phone" label="Téléphone" value={formData.phone} onChange={handleChange} />
@@ -197,8 +206,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
                                 <option value="M1">M1</option>
                                 <option value="M2">M2</option>
                                 <option value="PhD">Doctorat</option>
+                                <option value="Bacc">Baccalauréat</option>
                             </select>
-                            <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none">Niveau</label>
+                            <label htmlFor="studyLevel" className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none">Niveau</label>
                         </div>
                     </div>
                     <FloatingInput id="studyField" label="Filière / Domaine (ex: Informatique)" value={formData.studyField} onChange={handleChange} />
@@ -394,6 +404,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
             </form>
         </div>
 
+        {error && <p role="alert" className="px-8 py-2 text-sm text-red-700">{error}</p>}
         {/* Footer Actions - Sticky */}
         <div className="bg-white p-4 md:px-8 md:py-5 border-t border-gray-100 flex justify-end gap-3 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:shadow-none">
             <button 
@@ -404,7 +415,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
                 Annuler
             </button>
             <button 
-                onClick={handleSubmit} 
+                type="submit" form="edit-profile-form"
                 disabled={isSaving}
                 className="flex-1 md:flex-none px-6 py-3 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20"
             >

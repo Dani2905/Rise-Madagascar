@@ -12,7 +12,7 @@ const CTASection: React.FC = () => {
           <div className="relative rounded-3xl overflow-hidden bg-primary px-6 py-16 md:px-16 md:py-20 text-center shadow-2xl shadow-primary/30">
               <div className="relative z-10">
                   <h2 className="text-3xl md:text-4xl font-heading font-bold text-white mb-6">Étudiant ou Entreprise ?</h2>
-                  <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">Rejoignez la communauté Rise et découvrez les abonnements adaptés à chaque profil.</p>
+                  <p className="text-white/90 text-lg mb-8 max-w-2xl mx-auto">Rejoignez la communauté Rise Madagascar et découvrez les abonnements adaptés à chaque profil.</p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                       {!isLoggedIn && (
                           <button onClick={() => navigate('/register?type=student')} className="inline-flex items-center justify-center gap-2 bg-white text-slate-900 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-50 transition-colors shadow-lg">

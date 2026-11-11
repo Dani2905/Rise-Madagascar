@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Menu, X, MessageSquare } from 'lucide-react';
+import { Menu, X, Mail, Search } from 'lucide-react';
 import { useNavbar } from '../hooks/useNavbar';
 
 // Sub-components
@@ -38,6 +38,7 @@ const Navbar: React.FC = () => {
           {/* Desktop Menu - Visible only on LG and up */}
           <div className="hidden lg:flex items-center gap-8">
             <NavLinks />
+            <NavLink to="/discover" aria-label="Rechercher des offres et des personnes" title="Rechercher des offres et des personnes" className="inline-flex items-center justify-center rounded-full p-2 text-gray-600 hover:bg-gray-100 hover:text-slate-900"><Search size={22} /></NavLink>
             
             {/* Divider */}
             <div className="h-6 w-px bg-gray-200/60"></div>
@@ -59,9 +60,10 @@ const Navbar: React.FC = () => {
 
           {/* Mobile Menu Button - Visible up to LG */}
           <div className="flex items-center lg:hidden gap-3">
+            <NavLink to="/discover" aria-label="Rechercher des offres et des personnes" title="Rechercher des offres et des personnes" onClick={closeMobileMenu} className="inline-flex items-center justify-center rounded-full p-2 text-gray-600 hover:bg-gray-100"><Search size={22} /></NavLink>
             {isLoggedIn && (
-                <NavLink to="/messages" className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
-                    <MessageSquare size={22} />
+                <NavLink to="/messages" aria-label={unreadTotal ? `Messagerie, ${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}` : 'Messagerie'} className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
+                    <Mail size={22} />
                     {unreadTotal > 0 && (
                         <span className="absolute top-1 right-1 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white"></span>
                     )}

@@ -53,3 +53,12 @@ export function formatSubscriptionDate(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? 'date inconnue' : new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long', timeStyle: 'short', timeZone: 'Indian/Antananarivo' }).format(date);
 }
+
+/** Session courante du navigateur ; ne constitue pas une authentification serveur. */
+export function getCurrentLocalSession(user: any): any | null {
+  try {
+    const session = JSON.parse(localStorage.getItem('rise_user_data') || 'null');
+    if (!localStorage.getItem('rise_session_token') || !session || !user || session.id == null || user.id == null || String(session.id) !== String(user.id) || session.role !== user.role) return null;
+    return session;
+  } catch { return null; }
+}

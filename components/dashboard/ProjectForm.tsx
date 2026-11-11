@@ -29,6 +29,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
   const [roadmapInput, setRoadmapInput] = useState({ date: '', title: '' });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (initialData) {
@@ -95,10 +96,11 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.title.trim() || !formData.description.trim() || !formData.category || !formData.need) { setError('Renseignez le nom, la catégorie, le besoin et la description du projet.'); return; }
+    setError('');
     setIsSaving(true);
-    
-    // Vérification et sauvegarde sont effectuées immédiatement par le parent.
-    onSave(formData);
+    // Le parent vérifie le rôle et l’abonnement au moment de la sauvegarde.
+    onSave({ ...formData, title: formData.title.trim(), description: formData.description.trim() });
     setIsSaving(false);
   };
 
@@ -120,6 +122,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-10">
+            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 flex items-start gap-3">
                 <AlertCircle className="shrink-0 mt-0.5" size={18} />
@@ -157,7 +160,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
                                 <option value="Art">Art & Design</option>
                                 <option value="Services">Services</option>
                             </select>
-                            <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1">
+                            <label htmlFor="category" className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1">
                                 Catégorie
                             </label>
                         </div>
@@ -177,7 +180,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
                                 <option value="Visibilité">Visibilité</option>
                                 <option value="Co-fondateur">Co-fondateur</option>
                             </select>
-                            <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1">
+                            <label htmlFor="need" className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1">
                                 Besoin principal
                             </label>
                         </div>
@@ -231,7 +234,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
                             <option value="MVP">MVP (Produit Minimum)</option>
                             <option value="En activité">En activité</option>
                         </select>
-                        <label className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1">
+                        <label htmlFor="stage" className="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 pointer-events-none left-1">
                             Stade d'avancement
                         </label>
                     </div>

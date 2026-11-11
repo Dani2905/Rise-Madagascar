@@ -17,7 +17,7 @@ const CompanySidebar: React.FC<CompanySidebarProps> = ({ activeTab, changeTab, o
       <nav className="flex flex-col px-3 gap-1">
         {['dashboard', 'jobs', 'candidates', 'mentoring', 'settings'].map((tab) => (
           <button
-            key={tab}
+            key={tab} type="button" aria-current={activeTab === tab ? 'page' : undefined}
             onClick={() => changeTab(tab)}
             className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all capitalize group ${activeTab === tab ? 'bg-slate-900 text-white shadow-md shadow-slate-900/10' : 'text-gray-500 hover:bg-gray-50 hover:text-slate-900'}`}
           >
@@ -26,7 +26,7 @@ const CompanySidebar: React.FC<CompanySidebarProps> = ({ activeTab, changeTab, o
             {tab === 'candidates' && <Users size={18} className={activeTab === tab ? 'text-white' : 'text-gray-400 group-hover:text-slate-900'} />}
             {tab === 'mentoring' && <ClipboardList size={18} className={activeTab === tab ? 'text-white' : 'text-gray-400 group-hover:text-slate-900'} />}
             {tab === 'settings' && <Settings size={18} className={activeTab === tab ? 'text-white' : 'text-gray-400 group-hover:text-slate-900'} />}
-            {tab === 'dashboard' ? "Vue d'ensemble" : tab === 'jobs' ? "Mes Offres" : tab === 'candidates' ? "CVthèque" : tab === 'mentoring' ? "Suivi" : "Paramètres"}
+            {tab === 'dashboard' ? "Vue d'ensemble" : tab === 'jobs' ? "Mes Offres" : tab === 'candidates' ? "Candidatures" : tab === 'mentoring' ? "Suivi" : "Paramètres"}
           </button>
         ))}
       </nav>

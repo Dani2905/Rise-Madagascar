@@ -8,7 +8,7 @@ interface CandidateMainContentProps {
 }
 
 const CandidateMainContent: React.FC<CandidateMainContentProps> = ({ candidate, isLiveProfile }) => {
-  const reviews = candidate.reviews || [];
+  const reviews = Array.isArray(candidate.reviews) ? candidate.reviews.filter((r: any) => r && typeof r.reviewerName === 'string') : [];
 
   return (
     <div className="space-y-8">

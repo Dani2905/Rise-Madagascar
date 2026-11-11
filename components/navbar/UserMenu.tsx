@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LogIn, UserPlus, ChevronDown, MessageSquare, Settings, LogOut } from 'lucide-react';
+import { LogIn, UserPlus, ChevronDown, Mail, Settings, LogOut } from 'lucide-react';
 import RoleBasedLinks from './RoleBasedLinks';
 
 interface UserMenuProps {
@@ -49,8 +49,8 @@ const UserMenu: React.FC<UserMenuProps> = ({
   return (
     <div className="flex items-center gap-3">
         {/* MESSAGING ICON */}
-        <NavLink to="/messages" className="relative p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-slate-900 transition-colors" title="Messagerie">
-            <MessageSquare size={20} />
+        <NavLink to="/messages" className="relative p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-slate-900 transition-colors" title="Messagerie" aria-label={unreadTotal ? `Messagerie, ${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}` : 'Messagerie'}>
+            <Mail size={20} />
             {unreadTotal > 0 && (
                 <span className="absolute top-2 right-2 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white"></span>
             )}
@@ -90,7 +90,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
                         <RoleBasedLinks role={user.role} onLinkClick={closeProfileMenu} />
                         
                         <NavLink to="/messages" onClick={closeProfileMenu} className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-slate-900 rounded-xl transition-colors">
-                            <MessageSquare size={16} className="mr-3 text-gray-400" /> Messagerie
+                            <Mail size={16} className="mr-3 text-gray-400" /> Messagerie
                             {unreadTotal > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{unreadTotal}</span>}
                         </NavLink>
 

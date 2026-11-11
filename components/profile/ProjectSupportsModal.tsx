@@ -3,6 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { X, TrendingUp, Lightbulb, Handshake, CheckCircle, XCircle, MessageSquare, Calendar, User, Briefcase } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ProjectSupport } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { getCurrentLocalSession } from '../../utils/subscription';
+import { readLocalArray } from '../../utils/recruiterDashboard';
 
 interface ProjectSupportsModalProps {
   isOpen: boolean;
@@ -13,34 +16,40 @@ interface ProjectSupportsModalProps {
 
 const ProjectSupportsModal: React.FC<ProjectSupportsModalProps> = ({ isOpen, onClose, projectId, projectTitle }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [supports, setSupports] = useState<ProjectSupport[]>([]);
 
+  const validateOwner = () => {
+    if (!user || user.role !== 'student' || !getCurrentLocalSession(user)) throw new Error();
+    const projects = readLocalArray('rise_custom_projects');
+    const matches = projects.filter(p => p?.id != null && String(p.id) === String(projectId));
+    if (matches.length !== 1) throw new Error();
+    const project = matches[0];
+    const isOwner = project.ownerId != null ? String(project.ownerId) === String(user.id) : typeof project.studentEmail === 'string' && typeof user.email === 'string' && project.studentEmail.trim().toLowerCase() === user.email.trim().toLowerCase();
+    if (!isOwner) throw new Error();
+  };
   useEffect(() => {
-    if (isOpen) {
-        const allSupports = JSON.parse(localStorage.getItem('rise_project_supports') || '[]');
-        // Filtrer les supports pour ce projet spécifique
-        const projectSupports = allSupports.filter((s: ProjectSupport) => s.projectId.toString() === projectId.toString());
-        setSupports(projectSupports.reverse()); // Les plus récents en premier
-    }
-  }, [isOpen, projectId]);
-
+    if (!isOpen) return;
+    try { validateOwner(); setSupports(readLocalArray('rise_project_supports').filter(s => s?.projectId != null && String(s.projectId) === String(projectId)).reverse()); setError(''); setMessage(''); }
+    catch { setSupports([]); setError('Les propositions ou le projet ne sont pas disponibles dans ce navigateur.'); }
+  }, [isOpen, projectId, user]);
   const handleDecision = (supportId: string, status: 'accepted' | 'rejected') => {
-      // 1. Mise à jour locale
-      setSupports(prev => prev.map(s => s.id === supportId ? { ...s, status } : s));
-
-      // 2. Mise à jour Database
-      const allSupports = JSON.parse(localStorage.getItem('rise_project_supports') || '[]');
-      const updatedAll = allSupports.map((s: ProjectSupport) => s.id === supportId ? { ...s, status } : s);
-      localStorage.setItem('rise_project_supports', JSON.stringify(updatedAll));
-
-      window.Toastify({
-          text: status === 'accepted' ? "Proposition acceptée ! Contactez le partenaire." : "Proposition refusée.",
-          style: { background: status === 'accepted' ? "#10B981" : "#64748b" }
-      }).showToast();
+    try {
+      validateOwner();
+      const all = readLocalArray('rise_project_supports');
+      const matches = all.filter(s => s?.id != null && String(s.id) === String(supportId) && s.projectId != null && String(s.projectId) === String(projectId));
+      if (matches.length !== 1 || matches[0].status !== 'pending') throw new Error();
+      const updated = all.map(s => s === matches[0] ? { ...s, status } : s);
+      localStorage.setItem('rise_project_supports', JSON.stringify(updated));
+      setSupports(updated.filter(s => s?.projectId != null && String(s.projectId) === String(projectId)).reverse());
+      setError(''); setMessage('Décision enregistrée dans ce navigateur ; aucune notification réelle n’est envoyée.');
+    } catch { setError('Impossible de modifier cette proposition dans ce navigateur.'); }
   };
 
   const handleContact = (supporterId: string | number) => {
-      navigate(`/messages?partner=${supporterId}`);
+      navigate(`/messages?partner=${encodeURIComponent(String(supporterId))}`);
   };
 
   if (!isOpen) return null;
@@ -71,6 +80,8 @@ const ProjectSupportsModal: React.FC<ProjectSupportsModalProps> = ({ isOpen, onC
 
         {/* List */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50 space-y-4">
+            {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+            {message && <p role="status" className="rounded-xl bg-green-50 p-3 text-sm text-green-700">{message}</p>}
             {supports.length > 0 ? (
                 supports.map(support => (
                     <div key={support.id} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm relative overflow-hidden group hover:shadow-md transition-shadow">

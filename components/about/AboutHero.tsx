@@ -17,7 +17,7 @@ const AboutHero: React.FC = () => {
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-yellow-200">un accélérateur de destin.</span>
             </h1>
             <p className="text-lg md:text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed font-light">
-                Rise rassemble les étudiants, les entreprises et les particuliers autour des <span className="text-white font-medium">offres, missions et projets étudiants</span>.
+                Rise Madagascar rassemble les étudiants, les entreprises et les particuliers autour des <span className="text-white font-medium">offres, missions et projets étudiants</span>.
             </p>
         </div>
       </section>

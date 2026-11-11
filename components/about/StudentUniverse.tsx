@@ -1,5 +1,5 @@
 import React from 'react';
-import { Briefcase, CheckCircle2, ArrowRight, Rocket, Users, Lightbulb, Zap, BookOpen, Globe, Search } from 'lucide-react';
+import { Briefcase, CheckCircle2, ArrowRight, Rocket, Users, Lightbulb, Zap, Globe, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
@@ -16,7 +16,7 @@ const StudentUniverse: React.FC = () => {
                 <h2 className="text-sm font-bold text-primary uppercase tracking-widest mb-3">Pour les étudiants</h2>
                 <h3 className="text-3xl md:text-4xl font-heading font-bold text-slate-900">Tout pour lancer votre carrière</h3>
                 <p className="text-gray-500 mt-4 max-w-2xl mx-auto">
-                    Découvrez les offres, les projets et les outils disponibles sur Rise.
+                    Découvrez les offres et les projets étudiants sur Rise Madagascar.
                 </p>
             </div>
 
@@ -70,7 +70,7 @@ const StudentUniverse: React.FC = () => {
                         {isRecruiter ? (
                              <>
                                 <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-                                    Découvrez les projets présentés dans la section <strong className="text-white">Ressources</strong> et leurs besoins.
+                                    Découvrez les projets présentés dans la section <strong className="text-white">Projets</strong> et leurs besoins.
                                 </p>
                                 <ul className="space-y-3 text-sm text-slate-300">
                                     <li className="flex gap-2"><Lightbulb size={16} className="text-primary" /> Découvrir des projets</li>
@@ -84,7 +84,7 @@ const StudentUniverse: React.FC = () => {
                         ) : (
                              <>
                                 <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-                                    Vous avez une idée ? Ne la gardez pas pour vous. La section <strong className="text-white">"Ressources"</strong> vous permet de :
+                                    Vous avez une idée ? Ne la gardez pas pour vous. La section <strong className="text-white">« Projets »</strong> vous permet de :
                                 </p>
                                 <ul className="space-y-3 text-sm text-slate-300">
                                     <li className="flex gap-2"><Lightbulb size={16} className="text-primary" /> Publier votre projet</li>
@@ -100,22 +100,8 @@ const StudentUniverse: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Card 3: Boîte à outils (Full Width on mobile, 1/3 on Desktop) */}
-                <div className="bg-yellow-50 rounded-3xl p-8 border border-yellow-100 hover:shadow-lg transition-all group">
-                    <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-yellow-600 mb-6">
-                        <BookOpen size={24} />
-                    </div>
-                    <h4 className="text-xl font-bold text-slate-900 mb-3">Guides & Outils</h4>
-                    <p className="text-gray-600 text-sm mb-4">
-                        Téléchargez des trames à personnaliser et consultez des conseils pour votre parcours.
-                    </p>
-                    <button onClick={() => navigate('/resources?tab=guides')} className="text-sm font-bold text-slate-900 underline decoration-yellow-400 decoration-2 underline-offset-4 hover:text-yellow-700 bg-transparent border-none p-0 cursor-pointer">
-                        Voir les guides et modèles
-                    </button>
-                </div>
-
                 {/* Card 4: Freelance et télétravail */}
-                <div className="md:col-span-2 bg-white rounded-3xl p-8 border border-gray-100 shadow-lg shadow-gray-200/50 hover:shadow-xl transition-shadow flex flex-col md:flex-row items-center gap-8">
+                <div className="md:col-span-3 bg-white rounded-3xl p-8 border border-gray-100 shadow-lg shadow-gray-200/50 hover:shadow-xl transition-shadow flex flex-col md:flex-row items-center gap-8">
                     <div className="flex-1">
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold mb-4 border border-green-100">
                             <Globe size={12} /> Flexibilité

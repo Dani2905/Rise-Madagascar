@@ -7,9 +7,10 @@ import { getWebsiteUrl } from '../../utils/website';
 interface CompanyCardProps {
   company: Company;
   fromDirectory?: string;
+  followAction?: React.ReactNode;
 }
 
-const CompanyCard: React.FC<CompanyCardProps> = ({ company, fromDirectory }) => {
+const CompanyCard: React.FC<CompanyCardProps> = ({ company, fromDirectory, followAction }) => {
   const profilePath = `/companies/${encodeURIComponent(String(company.id))}`;
   const state = fromDirectory ? { fromDirectory } : undefined;
   const website = getWebsiteUrl(company.website);
@@ -57,6 +58,7 @@ const CompanyCard: React.FC<CompanyCardProps> = ({ company, fromDirectory }) => 
                     {company.jobs > 0 ? `Voir ${company.jobs} ${company.jobs > 1 ? 'offres actives' : 'offre active'}` : 'Voir le profil'}
                     <ArrowRight size={16} className="transform group-hover/btn:translate-x-1 transition-transform" />
                 </Link>
+                <div className="mt-2">{followAction}</div>
             </div>
         </div>
     </div>

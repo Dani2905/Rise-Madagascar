@@ -4,8 +4,11 @@ import { Plus, ArrowLeft, ExternalLink, Camera } from 'lucide-react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSubscription } from '../../context/SubscriptionContext';
-import { canPerformAction } from '../../utils/subscription';
+import { canPerformAction, getCurrentLocalSession } from '../../utils/subscription';
 import { Review } from '../../types';
+import { saveMissionTracking, MissionTrackingDraft } from '../../utils/missionTracking';
+import { isDemoRecruiter } from '../../utils/demoRecruiter';
+import { readLocalArray, ownsRecruiterJob, getOwnedCandidate } from '../../utils/recruiterDashboard';
 
 // Modales
 import CompanyPostJobTab from './company/CompanyPostJobTab';
@@ -26,7 +29,6 @@ const CompanyDashboard: React.FC = () => {
   const { logout, user, updateUser } = useAuth();
   const { openSubscription } = useSubscription();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'candidates' | 'mentoring' | 'settings' | 'post-job'>('dashboard');
   const [editingJob, setEditingJob] = useState<any>(null);
   const [selectedJobFilter, setSelectedJobFilter] = useState<string | null>(null);
 
@@ -42,93 +44,68 @@ const CompanyDashboard: React.FC = () => {
   const [activeJobsList, setActiveJobsList] = useState<any[]>([]);
   const [candidatesList, setCandidatesList] = useState<any[]>([]);
   const [stats, setStats] = useState({ activeJobs: 0, totalCandidates: 0, newMessages: 0 });
+  const [dataVersion, setDataVersion] = useState(0);
+  const [error, setError] = useState('');
+  const [dataAvailable, setDataAvailable] = useState(true);
+  const [imageMessage, setImageMessage] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const uploadBusy = useRef(false);
+  const tab = searchParams.get('tab');
+  const activeTab = ['dashboard', 'jobs', 'candidates', 'mentoring', 'settings', 'post-job'].includes(tab || '') ? tab! : 'dashboard';
 
-  // --- COEUR DU SYSTÈME : CHARGEMENT DES DONNÉES ---
-  useEffect(() => {
-      if (!user) return;
-
-      // 1. Charger TOUTES les offres avec sécurité
-      let allJobs = [];
-      try {
-          const jobsStr = localStorage.getItem('rise_jobs');
-          allJobs = jobsStr ? JSON.parse(jobsStr) : [];
-          if (!Array.isArray(allJobs)) allJobs = [];
-      } catch (e) { console.error(e); allJobs = []; }
-      
-      // 2. FILTRAGE ROBUSTE : Trouver les offres appartenant à l'utilisateur connecté
-      const myJobs = allJobs.filter((j: any) => {
-          if (j.ownerId && user.id) return j.ownerId.toString() === user.id.toString();
-          return j.company === user.companyName || j.company === `${user.firstName} ${user.lastName}`;
-      });
-      
-      setActiveJobsList(myJobs);
-
-      // 3. Charger TOUTES les candidatures avec sécurité
-      let allApplications = [];
-      try {
-          const appsStr = localStorage.getItem('rise_applications');
-          allApplications = appsStr ? JSON.parse(appsStr) : [];
-          if (!Array.isArray(allApplications)) allApplications = [];
-      } catch (e) { console.error(e); allApplications = []; }
-      
-      // 4. RECUPERER LES CANDIDATS pour MES offres
-      const myJobIds = myJobs.map((j: any) => j.id.toString());
-      const myCandidates = allApplications.filter((app: any) => 
-          myJobIds.includes(app.jobId.toString())
-      );
-      
-      setCandidatesList(myCandidates);
-
-      // 5. Calculer les statistiques
-      setStats({
-          activeJobs: myJobs.filter((j: any) => j.status === 'Actif').length,
-          totalCandidates: myCandidates.length,
-          newMessages: 0 
-      });
-
-  }, [user, activeTab]);
-
-  useEffect(() => {
-      const tabParam = searchParams.get('tab');
-      if (tabParam && ['dashboard', 'jobs', 'candidates', 'mentoring', 'settings', 'post-job'].includes(tabParam)) {
-          setActiveTab(tabParam as any);
-      }
-  }, [searchParams]);
-
-  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-          if (file.size > 5 * 1024 * 1024) {
-              if (window.Toastify) window.Toastify({ text: "Image trop lourde (Max 5MB)", style: { background: "#ef4444" } }).showToast();
-              return;
-          }
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              updateUser({ coverUrl: reader.result as string });
-              if (window.Toastify) window.Toastify({ text: "Couverture mise à jour !", style: { background: "#10B981" } }).showToast();
-          };
-          reader.readAsDataURL(file);
-      }
+  const updateCompany = (updates: any) => {
+    const users = readLocalArray('rise_db_users');
+    if (!user || users.filter(u => u?.id != null && String(u.id) === String(user.id) && u.role === 'company').length !== 1) throw new Error('Compte entreprise introuvable.');
+    updateUser(updates);
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-          if (file.size > 2 * 1024 * 1024) {
-              if (window.Toastify) window.Toastify({ text: "Image trop lourde (Max 2MB)", style: { background: "#ef4444" } }).showToast();
-              return;
-          }
-          const reader = new FileReader();
-          reader.onloadend = () => {
-              updateUser({ logoUrl: reader.result as string, avatarUrl: reader.result as string });
-              if (window.Toastify) window.Toastify({ text: "Logo mis à jour !", style: { background: "#10B981" } }).showToast();
-          };
-          reader.readAsDataURL(file);
-      }
+  // Charger les données de ce recruteur et actualiser les compteurs depuis les candidatures.
+  useEffect(() => {
+      if (!user) return;
+      const refresh = () => {
+        try {
+          const users = readLocalArray('rise_db_users');
+          const allJobs = readLocalArray('rise_jobs');
+          const allApps = readLocalArray('rise_applications');
+          const counts = new Map<string, number>();
+          allJobs.forEach(j => { if (j?.id != null) counts.set(String(j.id), (counts.get(String(j.id)) || 0) + 1); });
+          const myJobs = allJobs.filter(j => j?.id != null && counts.get(String(j.id)) === 1 && ownsRecruiterJob(user, j, users));
+          const candidates = allApps.filter(a => a?.id != null && getOwnedCandidate(user, a.id, allApps, allJobs, users) === a);
+          setActiveJobsList(myJobs.map(j => ({ ...j, candidates: candidates.filter(a => String(a.jobId) === String(j.id)).length })));
+          setCandidatesList(candidates);
+          setStats({ activeJobs: myJobs.filter(j => !j.status || j.status === 'Actif').length, totalCandidates: candidates.length, newMessages: 0 });
+          setDataAvailable(true); setError('');
+        } catch { setDataAvailable(false); setActiveJobsList([]); setCandidatesList([]); setError('Les données locales des offres ou candidatures sont illisibles. Aucune donnée n’a été modifiée.'); }
+      };
+      refresh();
+      window.addEventListener('storage', refresh); window.addEventListener('focus', refresh);
+      return () => { window.removeEventListener('storage', refresh); window.removeEventListener('focus', refresh); };
+  }, [user, activeTab, dataVersion]);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, field: 'coverUrl' | 'logoUrl') => {
+      const file = event.target.files?.[0]; event.target.value = '';
+      if (!file || uploadBusy.current) return;
+      setError(''); setImageMessage('');
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 2 * 1024 * 1024) { setError('Choisissez une image JPG, PNG ou WebP de 2 Mo maximum.'); return; }
+      uploadBusy.current = true; setUploading(true);
+      const reader = new FileReader();
+      reader.onerror = () => { uploadBusy.current = false; setUploading(false); setError('Impossible de lire cette image.'); };
+      reader.onload = () => {
+          try {
+            if (typeof reader.result !== 'string') throw new Error();
+            updateCompany(field === 'logoUrl' ? { logoUrl: reader.result, avatarUrl: reader.result } : { coverUrl: reader.result });
+            setImageMessage(field === 'logoUrl' ? 'Logo enregistré dans ce navigateur.' : 'Couverture enregistrée dans ce navigateur.');
+          } catch { setError('Impossible d’enregistrer cette image dans ce navigateur.'); }
+          finally { uploadBusy.current = false; setUploading(false); }
+      };
+      try { reader.readAsDataURL(file); } catch { uploadBusy.current = false; setUploading(false); setError('Impossible de lire cette image.'); }
+  };
+  const removeImage = (field: 'coverUrl' | 'logoUrl') => {
+      try { updateCompany(field === 'logoUrl' ? { logoUrl: '', avatarUrl: '' } : { coverUrl: '' }); setImageMessage('Image retirée.'); setError(''); }
+      catch { setError('Impossible de retirer cette image dans ce navigateur.'); }
   };
 
   const changeTab = (tab: any) => {
-      setActiveTab(tab);
       if (tab !== 'candidates') setSelectedJobFilter(null);
       navigate(`/dashboard?tab=${tab}`);
   };
@@ -139,145 +116,84 @@ const CompanyDashboard: React.FC = () => {
   };
 
   const handleSaveJob = (jobData: any) => {
-      // Contrôle au moment de l'enregistrement, même en cas d'expiration pendant la saisie.
-      if (!canPerformAction(user, 'publishOffer')) {
-          if (window.Toastify) window.Toastify({ text: 'Un abonnement actif est nécessaire pour publier cette annonce.', style: { background: '#ef4444' } }).showToast();
-          openSubscription();
-          return;
-      }
-
-      const allLocalJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-      
-      if (editingJob) {
-          const updatedJob = { ...editingJob, ...jobData };
-          const updatedAllJobs = allLocalJobs.map((j: any) => j.id === editingJob.id ? updatedJob : j);
-          
-          localStorage.setItem('rise_jobs', JSON.stringify(updatedAllJobs));
-          setActiveJobsList(prev => prev.map(j => j.id === editingJob.id ? updatedJob : j));
-          window.Toastify({ text: "Offre mise à jour !", style: { background: "#2563EB" } }).showToast();
-      } else {
-          const newJob = {
-              id: Date.now().toString(),
-              ...jobData,
-              createdAt: new Date().toISOString(),
-              candidates: 0
-          };
-          localStorage.setItem('rise_jobs', JSON.stringify([newJob, ...allLocalJobs]));
-          setActiveJobsList(prev => [newJob, ...prev]);
-          setStats(prev => ({ ...prev, activeJobs: prev.activeJobs + 1 }));
-          window.Toastify({ text: "Offre publiée !", style: { background: "#10B981" } }).showToast();
-          changeTab('jobs');
-      }
-      setEditingJob(null);
+      const current = getCurrentLocalSession(user);
+      if (!current) { setError('Votre session a changé. Reconnectez-vous avant de publier.'); return; }
+      if (!canPerformAction(current, 'publishOffer')) { setError('Un abonnement entreprise actif est nécessaire pour publier ou modifier une offre.'); window.dispatchEvent(new StorageEvent('storage', { key: 'rise_user_data' })); openSubscription(); return; }
+      try {
+        const users = readLocalArray('rise_db_users');
+        const jobs = readLocalArray('rise_jobs');
+        if (editingJob) {
+          const matches = jobs.filter(j => j?.id != null && String(j.id) === String(editingJob.id));
+          if (matches.length !== 1 || !ownsRecruiterJob(user, matches[0], users)) throw new Error('Offre introuvable ou appartenant à un autre compte.');
+          const existing = matches[0];
+          const updated = { ...existing, ...jobData, id: existing.id, ownerId: user.id, ownerEmail: user.email, candidates: existing.candidates || 0, createdAt: existing.createdAt };
+          localStorage.setItem('rise_jobs', JSON.stringify(jobs.map(j => j === existing ? updated : j)));
+        } else {
+          let id = Date.now(); while (jobs.some(j => j?.id != null && String(j.id) === String(id))) id++;
+          localStorage.setItem('rise_jobs', JSON.stringify([{ ...jobData, id: String(id), ownerId: user.id, ownerEmail: user.email, createdAt: new Date().toISOString(), candidates: 0, ...(isDemoRecruiter(user) ? { isDemo: true } : {}) }, ...jobs]));
+        }
+        setError(''); setEditingJob(null); setDataVersion(v => v + 1); changeTab('jobs');
+      } catch (e) { setError(e instanceof Error && e.message.includes('Offre introuvable') ? e.message : 'Impossible d’enregistrer l’offre : données locales illisibles ou stockage indisponible.'); }
   };
 
   const handleDeleteJob = (id: string | number) => {
-      if(window.confirm("Supprimer cette offre ?")) {
-          const allLocalJobs = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-          const filteredJobs = allLocalJobs.filter((j: any) => j.id.toString() !== id.toString());
-          localStorage.setItem('rise_jobs', JSON.stringify(filteredJobs));
-          
-          setActiveJobsList(prev => prev.filter(j => j.id.toString() !== id.toString()));
-          setStats(prev => ({ ...prev, activeJobs: Math.max(0, prev.activeJobs - 1) }));
-          window.Toastify({ text: "Offre supprimée", style: { background: "#64748b" } }).showToast();
-      }
+      if (!user || !window.confirm('Supprimer cette offre dans ce navigateur ? Les candidatures associées resteront dans les historiques étudiants mais ne seront plus accessibles depuis cette offre.')) return;
+      try {
+        if (!getCurrentLocalSession(user)) throw new Error();
+        const users = readLocalArray('rise_db_users'), jobs = readLocalArray('rise_jobs');
+        const matches = jobs.filter(j => j?.id != null && String(j.id) === String(id));
+        if (matches.length !== 1 || !ownsRecruiterJob(user, matches[0], users)) throw new Error();
+        localStorage.setItem('rise_jobs', JSON.stringify(jobs.filter(j => j !== matches[0])));
+        setError(''); setDataVersion(v => v + 1);
+      } catch { setError('Impossible de supprimer cette offre : données illisibles ou propriété non vérifiée.'); }
   };
 
   const handleCandidateDecision = (candidateId: number, status: 'rejected' | 'interview' | 'accepted' | 'pending') => {
-      setCandidatesList(prev => prev.map(c => c.id === candidateId ? { ...c, status } : c));
-
-      const allApps = JSON.parse(localStorage.getItem('rise_applications') || '[]');
-      const updatedApps = allApps.map((app: any) => {
-          if (app.id === candidateId) {
-              return { 
-                  ...app, 
-                  status: status,
-                  updatedAt: new Date().toISOString()
-              };
-          }
-          return app;
-      });
-      localStorage.setItem('rise_applications', JSON.stringify(updatedApps));
-
-      const colors: any = { rejected: '#ef4444', interview: '#8b5cf6', accepted: '#10b981', pending: '#64748b' };
-      const labels: any = { rejected: 'Refusé', interview: 'Entretien', accepted: 'Accepté', pending: 'En attente' };
-      
-      window.Toastify({ 
-          text: `Candidat ${labels[status]}`, 
-          style: { background: colors[status] } 
-      }).showToast();
+      try {
+        if (!getCurrentLocalSession(user)) throw new Error();
+        const apps = readLocalArray('rise_applications'), jobs = readLocalArray('rise_jobs'), users = readLocalArray('rise_db_users');
+        const app = getOwnedCandidate(user, candidateId, apps, jobs, users);
+        if (!app || app.status === 'completed') throw new Error();
+        localStorage.setItem('rise_applications', JSON.stringify(apps.map(a => a === app ? { ...a, status, updatedAt: new Date().toISOString() } : a)));
+        setError(''); setDataVersion(v => v + 1);
+      } catch { setError('Impossible de modifier cette candidature : données illisibles ou propriété non vérifiée.'); }
   };
 
-  const handleTrackingUpdate = (candidateId: number, trackingData: any) => {
-      setCandidatesList(prev => prev.map(c => c.id === candidateId ? { ...c, tracking: trackingData } : c));
-
-      const allApps = JSON.parse(localStorage.getItem('rise_applications') || '[]');
-      const updatedApps = allApps.map((app: any) => {
-          if (app.id === candidateId) {
-              return { ...app, tracking: trackingData };
-          }
-          return app;
-      });
-      localStorage.setItem('rise_applications', JSON.stringify(updatedApps));
+  const handleTrackingUpdate = (candidateId: string | number, trackingData: MissionTrackingDraft, expected: string) => {
+      const result = saveMissionTracking(user, candidateId, trackingData, expected);
+      if (result.ok) { setError(''); setDataVersion(v => v + 1); }
+      return result;
   };
 
-  const handleOpenReview = (candidate: any) => {
-      setCandidateToReview(candidate);
-      setIsReviewModalOpen(true);
-  };
-
+  const handleOpenReview = (candidate: any) => { setCandidateToReview(candidate); setIsReviewModalOpen(true); };
   const handleSaveReview = (rating: number, comment: string) => {
-      if (!candidateToReview || !user) return;
-
-      const dbUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
-      const studentIndex = dbUsers.findIndex((u: any) => 
-          u.id.toString() === candidateToReview.applicantId?.toString() || 
-          u.email === candidateToReview.email
-      );
-
-      if (studentIndex !== -1) {
-          const student = dbUsers[studentIndex];
-          const newReview: Review = {
-              id: Date.now().toString(),
-              reviewerName: user.companyName || `${user.firstName} ${user.lastName}`,
-              reviewerId: user.id,
-              rating,
-              comment,
-              date: new Date().toLocaleDateString('fr-FR'),
-              jobTitle: candidateToReview.jobTitle
-          };
-
-          const currentReviews = student.reviews || [];
-          const updatedReviews = [...currentReviews, newReview];
-          const totalRating = updatedReviews.reduce((acc: number, r: Review) => acc + r.rating, 0);
-          const newAverage = (totalRating / updatedReviews.length).toFixed(1);
-
-          dbUsers[studentIndex] = {
-              ...student,
-              reviews: updatedReviews,
-              rating: parseFloat(newAverage),
-              reviewCount: updatedReviews.length
-          };
-          localStorage.setItem('rise_db_users', JSON.stringify(dbUsers));
+      if (!candidateToReview || !user || !getCurrentLocalSession(user) || !Number.isInteger(rating) || rating < 1 || rating > 5 || !comment.trim()) throw new Error('Avis invalide.');
+      const appsRaw = localStorage.getItem('rise_applications'), usersRaw = localStorage.getItem('rise_db_users');
+      const apps = readLocalArray('rise_applications'), jobs = readLocalArray('rise_jobs'), users = readLocalArray('rise_db_users');
+      const app = getOwnedCandidate(user, candidateToReview.id, apps, jobs, users);
+      if (!app || app.status !== 'accepted') throw new Error('Candidature introuvable ou déjà clôturée.');
+      const matches = users.filter(u => u?.role === 'student' && (app.applicantId != null ? u.id != null && String(u.id) === String(app.applicantId) : typeof u.email === 'string' && typeof app.email === 'string' && u.email.toLowerCase() === app.email.toLowerCase()));
+      if (matches.length !== 1) throw new Error('Compte étudiant introuvable.');
+      const student = matches[0], reviews = Array.isArray(student.reviews) ? student.reviews : [];
+      const review: Review = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, reviewerName: user.companyName || `${user.firstName} ${user.lastName}`, reviewerId: user.id, rating, comment: comment.trim(), date: new Date().toLocaleDateString('fr-FR'), jobTitle: app.jobTitle };
+      const nextReviews = [...reviews, review];
+      const validRatings = nextReviews.map((r: any) => Number(r.rating)).filter((n: number) => Number.isFinite(n) && n >= 1 && n <= 5);
+      try {
+        localStorage.setItem('rise_db_users', JSON.stringify(users.map(u => u === student ? { ...student, reviews: nextReviews, rating: Math.round(validRatings.reduce((a: number, n: number) => a + n, 0) / validRatings.length * 10) / 10, reviewCount: validRatings.length } : u)));
+        localStorage.setItem('rise_applications', JSON.stringify(apps.map(a => a === app ? { ...a, status: 'completed' } : a)));
+      } catch (e) {
+        try { if (usersRaw === null) localStorage.removeItem('rise_db_users'); else localStorage.setItem('rise_db_users', usersRaw); if (appsRaw === null) localStorage.removeItem('rise_applications'); else localStorage.setItem('rise_applications', appsRaw); } catch { /* stockage indisponible */ }
+        throw e;
       }
-
-      setCandidatesList(prev => prev.map(c => c.id === candidateToReview.id ? { ...c, status: 'completed' } : c));
-      const allApps = JSON.parse(localStorage.getItem('rise_applications') || '[]');
-      const updatedApps = allApps.map((app: any) => app.id === candidateToReview.id ? { ...app, status: 'completed' } : app);
-      localStorage.setItem('rise_applications', JSON.stringify(updatedApps));
-
-      window.Toastify({ 
-          text: "Contrat clôturé et étudiant noté !", 
-          style: { background: "linear-gradient(to right, #fbbf24, #d97706)" } 
-      }).showToast();
+      setError(''); setDataVersion(v => v + 1);
   };
 
   const openCandidateModal = (candidate: any) => {
-      navigate(`/candidates/${candidate.id}`);
+      navigate(`/candidates/${encodeURIComponent(String(candidate.id))}`);
   };
 
   const displayedCandidates = selectedJobFilter 
-    ? candidatesList.filter(c => c.jobId.toString() === selectedJobFilter.toString())
+    ? candidatesList.filter(c => c.jobId != null && String(c.jobId) === String(selectedJobFilter))
     : candidatesList;
 
   if (!user) return null;
@@ -286,31 +202,35 @@ const CompanyDashboard: React.FC = () => {
     <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
         
         {/* Navigation Top */}
-        <div className="mb-6 flex justify-between items-center">
+        <div className="mb-6 flex flex-wrap gap-3 justify-between items-center">
             <Link to="/" className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-yellow-600 transition-colors">
                 <ArrowLeft size={16} className="mr-2" /> Retour à l'accueil
             </Link>
-            <Link to={`/companies/${user.id}`} className="inline-flex items-center text-sm font-bold text-slate-900 hover:text-primary transition-colors bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
-                Voir ma page publique <ExternalLink size={16} className="ml-2" />
+            <Link to={`/companies/${encodeURIComponent(String(user.id))}`} state={{ fromDashboard: true }} className="inline-flex items-center text-sm font-bold text-slate-900 hover:text-primary transition-colors bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
+                Aperçu de mon profil <ExternalLink size={16} className="ml-2" />
             </Link>
         </div>
 
+        <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">{isDemoRecruiter(user) ? 'Entreprise de démonstration : ses informations et ses offres d’exemple sont fictives. ' : ''}Les profils, offres et candidatures restent dans ce navigateur ; aucun envoi réel n’est effectué.</p>
+        {error && <p role="alert" className="mb-4 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">{error}</p>}
+        {imageMessage && <p role="status" className="mb-4 rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">{imageMessage}</p>}
         {/* Dynamic Header with Cover & Profile */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden mb-8">
             <div className="h-48 md:h-64 bg-slate-900 relative group">
                  {/* Hidden inputs */}
-                 <input type="file" ref={coverInputRef} className="hidden" accept="image/*" onChange={handleCoverUpload} />
-                 <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                 <input type="file" ref={coverInputRef} aria-label="Choisir une couverture entreprise" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={e => handleImageUpload(e, 'coverUrl')} />
+                 <input type="file" ref={logoInputRef} aria-label="Choisir un logo entreprise" className="hidden" accept="image/jpeg,image/png,image/webp" onChange={e => handleImageUpload(e, 'logoUrl')} />
 
                  {user.coverUrl ? (
-                     <img src={user.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+                     <img src={user.coverUrl} alt="" className="w-full h-full object-cover" />
                  ) : (
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900">
-                        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+
                     </div>
                  )}
-                 <div className="absolute top-4 right-4 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                     <button onClick={() => coverInputRef.current?.click()} className="px-4 py-2 bg-black/40 hover:bg-black/60 backdrop-blur-md text-white text-xs font-bold rounded-xl border border-white/20 transition-colors flex items-center gap-2">
+                 <div className="absolute top-4 right-4 flex gap-2">
+                     {user.coverUrl && <button type="button" disabled={uploading} onClick={() => removeImage('coverUrl')} className="px-3 py-2 bg-black/60 text-white text-xs font-bold rounded-xl">Retirer la couverture</button>}
+                     <button type="button" disabled={uploading} onClick={() => coverInputRef.current?.click()} className="px-4 py-2 bg-black/40 hover:bg-black/60 backdrop-blur-md text-white text-xs font-bold rounded-xl border border-white/20 transition-colors flex items-center gap-2">
                         <Camera size={16} /> Modifier la couverture
                      </button>
                  </div>
@@ -319,15 +239,15 @@ const CompanyDashboard: React.FC = () => {
             <div className="px-6 md:px-10 pb-6 relative text-center md:text-left">
                 <div className="flex flex-col md:flex-row justify-between items-center md:items-end gap-6 -mt-16 md:-mt-20 mb-4">
                     <div className="flex flex-col md:flex-row items-center md:items-end gap-6 flex-1">
-                        <div 
+                        <button type="button" aria-label="Modifier le logo" disabled={uploading}
                             className="w-32 h-32 md:w-40 md:h-40 rounded-3xl border-4 border-white shadow-xl bg-white overflow-hidden relative z-10 shrink-0 group/logo cursor-pointer"
                             onClick={() => logoInputRef.current?.click()}
                         >
-                            <img src={user.logoUrl || user.avatarUrl || 'https://via.placeholder.com/150'} alt="Logo" className="w-full h-full object-cover group-hover/logo:opacity-75 transition-opacity" />
+                            {user.logoUrl || user.avatarUrl ? <img src={user.logoUrl || user.avatarUrl} alt="" className="w-full h-full object-cover group-hover/logo:opacity-75 transition-opacity" /> : <span className="h-full w-full flex items-center justify-center text-4xl font-bold bg-slate-100 text-slate-700">{(user.companyName || 'E').slice(0, 2).toUpperCase()}</span>}
                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 transition-opacity bg-slate-900/40 backdrop-blur-sm">
                                 <Camera className="text-white drop-shadow-md" size={32} />
                             </div>
-                        </div>
+                        </button>
                         <div className="pb-2 md:pb-4 w-full">
                             <h1 className="text-3xl md:text-4xl font-heading font-black text-slate-900 tracking-tight mb-2">
                                 {user.companyName || `${user.firstName} ${user.lastName}`}
@@ -338,7 +258,7 @@ const CompanyDashboard: React.FC = () => {
                                 </span>
                                 <span className="text-sm font-medium text-gray-500 flex items-center">
                                     <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                    {user.location || 'Madagascar'}
+                                    {user.location || 'Localisation non renseignée'}
                                 </span>
                             </div>
                         </div>
@@ -348,11 +268,13 @@ const CompanyDashboard: React.FC = () => {
                         <Plus size={20} /> Publier une offre
                     </button>
                 </div>
+                <p className="text-xs text-gray-500 mt-3">Logo et couverture : JPG, PNG ou WebP, 2 Mo maximum chacun, stockés localement.</p>
+                {(user.logoUrl || user.avatarUrl) && <button type="button" disabled={uploading} onClick={() => removeImage('logoUrl')} className="mt-2 text-xs font-bold underline text-slate-600">Retirer le logo</button>}
             </div>
         </div>
 
         {/* Stats Section */}
-        <CompanyStats stats={stats} changeTab={changeTab} />
+        {dataAvailable && <CompanyStats stats={stats} changeTab={changeTab} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Sidebar Navigation */}
@@ -364,9 +286,16 @@ const CompanyDashboard: React.FC = () => {
             <div className="lg:col-span-9">
                 {activeTab === 'dashboard' && (
                     <CompanyOverview 
-                        activeJobsList={activeJobsList} 
-                        changeTab={changeTab} 
-                        setSelectedJobFilter={setSelectedJobFilter} 
+                        user={user}
+                        activeJobsList={activeJobsList}
+                        candidatesList={candidatesList}
+                        dataAvailable={dataAvailable}
+                        changeTab={changeTab}
+                        setSelectedJobFilter={setSelectedJobFilter}
+                        onCreateJob={handleCreateJob}
+                        onOpenCandidate={openCandidateModal}
+                        onChooseLogo={() => logoInputRef.current?.click()}
+                        onChooseCover={() => coverInputRef.current?.click()}
                     />
                 )}
 
@@ -394,13 +323,16 @@ const CompanyDashboard: React.FC = () => {
                 )}
 
                 {/* --- MENTORING / TRACKING SECTION --- */}
-                {activeTab === 'mentoring' && (
+                {activeTab === 'mentoring' && (dataAvailable ? (
                     <InternshipTracker 
                         candidates={candidatesList} 
                         jobs={activeJobsList} 
-                        onUpdate={handleTrackingUpdate} 
+                        onUpdate={handleTrackingUpdate}
+                        onOpenReview={handleOpenReview}
+                        onViewCandidate={openCandidateModal}
+                        onViewCandidates={() => changeTab('candidates')}
                     />
-                )}
+                ) : <p className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Le suivi est indisponible tant que les données locales sont illisibles.</p>)}
 
                 {activeTab === 'post-job' && (
                     <CompanyPostJobTab 
@@ -410,7 +342,7 @@ const CompanyDashboard: React.FC = () => {
                     />
                 )}
 
-                {activeTab === 'settings' && <CompanySettings data={user} onUpdate={(updates) => updateUser(updates)} />}
+                {activeTab === 'settings' && <CompanySettings data={user} onUpdate={updateCompany} />}
             </div>
         </div>
         

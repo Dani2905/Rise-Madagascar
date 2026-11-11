@@ -1,63 +1,17 @@
-
 import React from 'react';
-import { Gift, CheckCircle2, Target } from 'lucide-react';
+import { Gift, CheckCircle2, Target, Compass, HeartHandshake } from 'lucide-react';
 import { Company } from '../../data/companiesData';
 
-interface CompanyAboutProps {
-  company: Company & { role?: string; needs?: string[] };
-}
-
-const CompanyAbout: React.FC<CompanyAboutProps> = ({ company }) => {
+interface Props { company: Company & { role?: string; needs?: string[]; activities?: string; values?: string }; }
+const CompanyAbout: React.FC<Props> = ({ company }) => {
   const isIndividual = company.role === 'individual' || company.sector === 'Particulier';
-
-  return (
-    <div className="space-y-8 animate-fade-in delay-100">
-        {/* Description */}
-        <section className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
-            <h2 className="text-xl font-heading font-bold text-slate-900 mb-4">À propos</h2>
-            <p className="text-gray-600 leading-relaxed text-lg">
-                {company.longDescription || company.description}
-            </p>
-        </section>
-
-        {/* Needs (For Individuals) */}
-        {isIndividual && company.needs && company.needs.length > 0 && (
-             <section className="bg-green-50 rounded-2xl p-8 border border-green-100 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-green-200/50 rounded-full blur-2xl"></div>
-                <h2 className="text-xl font-heading font-bold text-slate-900 mb-6 flex items-center gap-2 relative z-10">
-                    <Target className="text-green-700" /> Ce que je recherche
-                </h2>
-                <div className="flex flex-wrap gap-3 relative z-10">
-                    {company.needs.map((need: string, idx: number) => (
-                        <span key={idx} className="px-4 py-2 bg-white text-green-800 rounded-xl font-bold border border-green-200 shadow-sm">
-                            {need}
-                        </span>
-                    ))}
-                </div>
-            </section>
-        )}
-
-        {/* Perks / Benefits (For Companies) - Affichage Conditionnel Strict */}
-        {!isIndividual && Array.isArray(company.perks) && company.perks.length > 0 && (
-            <section className="bg-slate-50 rounded-2xl p-8 border border-slate-100 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-primary opacity-10 rounded-full blur-2xl"></div>
-                
-                <h2 className="text-xl font-heading font-bold text-slate-900 mb-6 flex items-center gap-2 relative z-10">
-                    <Gift className="text-primary" /> Pourquoi nous rejoindre ?
-                </h2>
-                
-                <div className="grid sm:grid-cols-2 gap-4 relative z-10">
-                    {company.perks.map((perk, idx) => (
-                        <div key={idx} className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-                            <CheckCircle2 className="text-green-500 shrink-0" size={20} />
-                            <span className="font-medium text-slate-700">{perk}</span>
-                        </div>
-                    ))}
-                </div>
-            </section>
-        )}
-    </div>
-  );
+  const description = company.longDescription || company.description;
+  return <div className="space-y-5 animate-fade-in">
+    {description && <section className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-widest text-yellow-700">Découvrir</p><h2 className="mt-2 text-2xl font-heading font-bold text-slate-900">À propos</h2><p className="mt-4 whitespace-pre-line text-sm sm:text-base leading-relaxed text-slate-600">{description}</p></section>}
+    {!isIndividual && company.activities && <section className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm"><h2 className="flex items-center gap-3 text-lg font-bold text-slate-900"><Compass size={20} className="text-yellow-600" /> Nos activités</h2><p className="mt-4 whitespace-pre-line text-sm sm:text-base leading-relaxed text-slate-600">{company.activities}</p></section>}
+    {!isIndividual && company.values && <section className="rounded-3xl border border-slate-100 bg-white p-6 sm:p-8 shadow-sm"><h2 className="flex items-center gap-3 text-lg font-bold text-slate-900"><HeartHandshake size={20} className="text-yellow-600" /> Nos valeurs</h2><p className="mt-4 whitespace-pre-line text-sm sm:text-base leading-relaxed text-slate-600">{company.values}</p></section>}
+    {isIndividual && Array.isArray(company.needs) && company.needs.length > 0 && <section className="rounded-3xl border border-green-100 bg-green-50 p-6 sm:p-8"><h2 className="flex items-center gap-3 text-lg font-bold text-slate-900"><Target size={20} className="text-green-700" /> Ce que je recherche</h2><div className="mt-5 flex flex-wrap gap-2">{company.needs.map((need, i) => <span key={i} className="rounded-xl border border-green-200 bg-white px-4 py-2 text-sm font-semibold text-green-800">{need}</span>)}</div></section>}
+    {!isIndividual && Array.isArray(company.perks) && company.perks.length > 0 && <section className="rounded-3xl border border-amber-100 bg-amber-50/60 p-6 sm:p-8"><h2 className="flex items-center gap-3 text-lg font-bold text-slate-900"><Gift size={20} className="text-yellow-700" /> Pourquoi nous rejoindre ?</h2><div className="mt-5 grid gap-3 sm:grid-cols-2">{company.perks.map((perk, i) => <div key={i} className="flex items-start gap-3 rounded-xl border border-amber-100 bg-white p-4"><CheckCircle2 className="shrink-0 text-emerald-600" size={19} /><span className="text-sm font-medium text-slate-700">{perk}</span></div>)}</div></section>}
+  </div>;
 };
-
 export default CompanyAbout;

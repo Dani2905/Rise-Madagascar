@@ -1,213 +1,145 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { useMessaging } from '../context/MessagingContext';
-import { Search, Send, ArrowLeft, MessageSquare } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, CheckCircle2, Inbox, Mail, PenLine, Reply, Search, Send, ShieldAlert, Users } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { MailContact, useMessaging } from '../context/MessagingContext';
+import { Message } from '../types';
+import PrivacySettings from '../components/messaging/PrivacySettings';
+import { getPublicProjects } from '../utils/projects';
+
+type Folder = 'inbox' | 'sent';
+type View = 'list' | 'compose' | 'detail' | 'contacts';
+const roleLabel = (role: string) => role === 'student' ? 'Étudiant' : role === 'company' ? 'Entreprise' : 'Particulier';
+const subjectOf = (m: Message) => typeof m.subject === 'string' && m.subject.trim() ? m.subject.trim() : '(Sans objet)';
+const dateLabel = (value: string, full = false) => {
+  if (!Number.isFinite(Date.parse(value))) return 'Date inconnue';
+  return new Intl.DateTimeFormat('fr-FR', full ? { dateStyle: 'long', timeStyle: 'short', timeZone: 'Indian/Antananarivo' } : { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Indian/Antananarivo' }).format(new Date(value));
+};
+const initial = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
+const nameFor = (id: string | number, user: any, contacts: MailContact[]) => String(id) === String(user?.id) ? 'Vous' : contacts.find(c => c.id === String(id))?.name || 'Compte local indisponible';
+const matchesTerm = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr');
 
 const Messages: React.FC = () => {
   const { user, isLoading } = useAuth();
-  const { conversations, messages, sendMessage, getMessages, markAsRead } = useMessaging();
-  const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
-  const [inputText, setInputText] = useState('');
-  const [searchParams] = useSearchParams();
+  const { messages, contacts, unreadTotal, error: storageError, privacy, setBlocked, decideRequest, reportMessage, sendMail, markMessageAsRead } = useMessaging();
   const navigate = useNavigate();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!isLoading && !user) navigate('/login', { replace: true, state: { returnTo: `/messages${searchParams.toString() ? `?${searchParams.toString()}` : ''}` } });
-  }, [isLoading, user, navigate, searchParams]);
+  const [params, setParams] = useSearchParams();
+  const partnerParam = params.get('partner');
+  const projectParam = params.get('project') || undefined;
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [folder, setFolder] = useState<Folder>('inbox');
+  const [view, setView] = useState<View>('list');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [contactSearch, setContactSearch] = useState('');
+  const [contactRole, setContactRole] = useState('all');
+  const [receiverId, setReceiverId] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [replyTo, setReplyTo] = useState<string | number | undefined>();
+  const [notice, setNotice] = useState('');
+  const [actionError, setActionError] = useState('');
+  const initialDraft = useRef({ receiverId: '', subject: '', body: '' });
 
   useEffect(() => {
-    // Si un ID est passé dans l'URL, ouvrir la conversation
-    const partnerId = searchParams.get('partner');
-    if (partnerId) {
-      setSelectedPartnerId(partnerId);
-    }
-  }, [searchParams]);
-
+    if (!isLoading && !user) navigate('/login', { replace: true, state: { returnTo: `/messages${params.toString() ? `?${params.toString()}` : ''}` } });
+  }, [isLoading, user, navigate, params]);
+  // Les liens « Contacter » existants ouvrent un nouveau message préadressé.
   useEffect(() => {
-    // Scroll automatique vers le bas lors d'un nouveau message
-    if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, selectedPartnerId]);
+    if (isLoading || !user || !partnerParam) return;
+    initialDraft.current = { receiverId: partnerParam, subject: '', body: '' };
+    setReceiverId(partnerParam); setSubject(''); setBody(''); setReplyTo(undefined); setView('compose'); setSelectedId(null); setActionError(''); setNotice('');
+  }, [partnerParam, isLoading, user?.id]);
+  useEffect(() => { setFolder('inbox'); setSelectedId(null); setSearch(''); setSubject(''); setBody(''); setReplyTo(undefined); setNotice(''); setActionError(''); if (!partnerParam) { setReceiverId(''); setView('list'); } }, [user?.id]);
 
-  useEffect(() => {
-      // Marquer comme lu quand on ouvre la conversation
-      if (selectedPartnerId) {
-          const hasUnread = messages.some(m => m.senderId.toString() === selectedPartnerId && m.receiverId.toString() === user?.id.toString() && !m.read);
-          if (hasUnread) {
-              markAsRead(selectedPartnerId);
-          }
-      }
-  }, [selectedPartnerId, messages, user]);
+  useEffect(() => { if (!isLoading && user?.role === 'student' && params.get('directory') === 'students') navigate('/discover?type=students', {replace:true}); }, [isLoading, user?.id, params, navigate]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputText.trim() || !selectedPartnerId) return;
-
-    sendMessage(selectedPartnerId, inputText);
-    setInputText('');
+  const ownMessages = useMemo(() => messages.filter(m => user && (String(m.senderId) === String(user.id) || String(m.receiverId) === String(user.id))), [messages, user]);
+  const folderMessages = useMemo(() => ownMessages.filter(m => folder === 'inbox' ? String(m.receiverId) === String(user?.id) : String(m.senderId) === String(user?.id)).reverse().sort((a, b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0)), [ownMessages, folder, user?.id]);
+  const acceptedIds = useMemo(() => new Set(ownMessages.filter(m => m.requestStatus === 'accepted').map(m => String(m.senderId) === String(user?.id) ? String(m.receiverId) : String(m.senderId))), [ownMessages, user?.id]);
+  const acceptedContacts = contacts.filter(c => acceptedIds.has(c.id));
+  const filteredContacts = acceptedContacts.filter(c => (contactRole === 'all' || c.role === contactRole) && matchesTerm(c.name).includes(matchesTerm(contactSearch.trim())));
+  const term = matchesTerm(search.trim());
+  const filtered = folderMessages.filter(m => !term || matchesTerm(`${subjectOf(m)} ${m.content} ${nameFor(folder === 'inbox' ? m.senderId : m.receiverId, user, contacts)}`).includes(term));
+  const selected = selectedId == null ? null : ownMessages.find(m => String(m.id) === selectedId) || null;
+  const projectName = (id: string) => getPublicProjects().find(p => String(p.id) === id)?.title || 'Projet local indisponible';
+  const recipientExists = contacts.some(c => c.id === receiverId);
+  const clearPartnerParam = () => { if (!partnerParam && !params.has('directory')) return; const next = new URLSearchParams(params); next.delete('partner'); next.delete('project'); next.delete('directory'); setParams(next, { replace: true }); };
+  const canDiscard = () => view !== 'compose' || (receiverId === initialDraft.current.receiverId && subject === initialDraft.current.subject && body === initialDraft.current.body) || window.confirm('Abandonner le message en cours de rédaction ?');
+  const openFolder = (next: Folder) => {
+    if (!canDiscard()) return;
+    setFolder(next); setView('list'); setSelectedId(null); setSearch(''); setReceiverId(''); setSubject(''); setBody(''); setReplyTo(undefined); setNotice(''); setActionError(''); clearPartnerParam();
   };
-
-  const activeConversation = conversations.find(c => c.partnerId.toString() === selectedPartnerId);
-  const currentMessages = selectedPartnerId ? getMessages(selectedPartnerId) : [];
-
-    // Si on a un partnerId mais pas encore de conversation, on essaie de récupérer ses infos
-    const [partnerInfo, setPartnerInfo] = useState<{name: string, avatar: string} | null>(null);
-
-    useEffect(() => {
-        if (selectedPartnerId && !activeConversation) {
-            const dbUsers = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
-            const foundUser = dbUsers.find((u: any) => u.id.toString() === selectedPartnerId);
-            if (foundUser) {
-                setPartnerInfo({
-                    name: foundUser.companyName || `${foundUser.firstName} ${foundUser.lastName}`,
-                    avatar: foundUser.logoUrl || foundUser.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(foundUser.companyName || foundUser.firstName || 'User')}&background=random`
-                });
-            } else {
-                setPartnerInfo({ name: 'Utilisateur', avatar: `https://ui-avatars.com/api/?name=User&background=random` });
-            }
-        } else {
-            setPartnerInfo(null);
-        }
-    }, [selectedPartnerId, activeConversation]);
-
-  if (!user) return null;
-
-
-  return (
-    <div className="max-w-[1600px] mx-auto h-[calc(100vh-64px)] bg-white flex overflow-hidden">
-      
-      {/* Sidebar (Liste des conversations) */}
-      <div className={`w-full md:w-80 lg:w-96 border-r border-gray-100 flex flex-col bg-slate-50 ${selectedPartnerId ? 'hidden md:flex' : 'flex'}`}>
-        <div className="p-4 border-b border-gray-100 bg-white">
-            <h1 className="text-xl font-heading font-bold text-slate-900 mb-4">Messages</h1>
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input 
-                    type="text" 
-                    placeholder="Rechercher une conversation..." 
-                    className="w-full pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                />
-            </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-            {conversations.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                    <MessageSquare size={32} className="mx-auto mb-2 text-gray-300" />
-                    <p className="text-sm">Aucune conversation pour le moment.</p>
-                </div>
-            ) : (
-                <div className="divide-y divide-gray-100">
-                    {conversations.map(conv => (
-                        <div 
-                            key={conv.partnerId}
-                            onClick={() => { setSelectedPartnerId(conv.partnerId.toString()); }}
-                            className={`p-4 hover:bg-white cursor-pointer transition-colors flex gap-3 ${selectedPartnerId === conv.partnerId.toString() ? 'bg-white border-l-4 border-primary' : 'border-l-4 border-transparent'}`}
-                        >
-                            <div className="relative shrink-0">
-                                <img src={conv.partnerAvatar} alt={conv.partnerName} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
-                                {conv.unreadCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">
-                                        {conv.unreadCount}
-                                    </span>
-                                )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-baseline mb-1">
-                                    <h3 className="font-bold text-slate-900 truncate">{conv.partnerName}</h3>
-                                    <span className="text-[10px] text-gray-400">
-                                        {new Date(conv.lastMessageDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                    </span>
-                                </div>
-                                <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-bold text-slate-800' : 'text-gray-500'}`}>
-                                    {conv.lastMessage}
-                                </p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-      </div>
-
-      {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col bg-white ${!selectedPartnerId ? 'hidden md:flex' : 'flex'}`}>
-        {selectedPartnerId ? (
-            <>
-                {/* Chat Header */}
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center shadow-sm z-10">
-                    <div className="flex items-center gap-3">
-                        <button onClick={() => setSelectedPartnerId(null)} className="md:hidden p-2 -ml-2 text-gray-500 hover:bg-gray-100 rounded-full">
-                            <ArrowLeft size={20} />
-                        </button>
-                        <div>
-                            <img src={activeConversation?.partnerAvatar || partnerInfo?.avatar || `https://ui-avatars.com/api/?name=User&background=random`} className="w-10 h-10 rounded-full object-cover border border-gray-100" alt="" />
-                        </div>
-                        <div>
-                            <h2 className="font-bold text-slate-900">{activeConversation?.partnerName || partnerInfo?.name || 'Utilisateur'}</h2>
-                            <p className="text-xs text-slate-500 font-medium">Messagerie simulée dans ce navigateur</p>
-                        </div>
-                    </div>
-
-                </div>
-
-                {/* Messages List */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f0f2f5] space-y-4">
-                    {currentMessages.map((msg) => {
-                        const isMe = msg.senderId.toString() === user.id.toString();
-                        return (
-                            <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[75%] md:max-w-[60%] px-4 py-3 rounded-2xl shadow-sm text-sm relative ${
-                                    isMe 
-                                    ? 'bg-primary text-slate-900 rounded-br-none' 
-                                    : 'bg-white text-slate-800 rounded-bl-none'
-                                }`}>
-                                    <p>{msg.content}</p>
-                                    <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-slate-700/60' : 'text-gray-400'}`}>
-                                        {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                    </p>
-                                </div>
-                            </div>
-                        );
-                    })}
-                    <div ref={messagesEndRef} />
-                </div>
-
-                {/* Input Area */}
-                <div className="p-4 bg-white border-t border-gray-100">
-                    <form onSubmit={handleSendMessage} className="flex gap-2">
-                        <input
-                            type="text"
-                            value={inputText}
-                            onChange={(e) => setInputText(e.target.value)}
-                            placeholder="Écrivez votre message..."
-                            className="flex-1 bg-slate-100 border-0 rounded-xl px-4 py-3 text-slate-900 focus:ring-2 focus:ring-primary focus:bg-white transition-all"
-                        />
-                        <button 
-                            type="submit"
-                            disabled={!inputText.trim()}
-                            className="p-3 bg-slate-900 text-white rounded-xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-95"
-                        >
-                            <Send size={20} />
-                        </button>
-                    </form>
-                </div>
-            </>
-        ) : (
-            <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 text-center p-8">
-                <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mb-6">
-                    <MessageSquare size={40} className="text-primary" />
-                </div>
-                <h2 className="text-2xl font-heading font-bold text-slate-900 mb-2">Vos messages</h2>
-                <p className="text-gray-500 max-w-sm">Sélectionnez une conversation pour commencer à discuter avec des recruteurs ou des étudiants.</p>
-            </div>
-        )}
+  const openContacts = () => {
+    if (!canDiscard()) return;
+    setView('contacts'); setSelectedId(null); setContactSearch(''); setContactRole('all'); setNotice(''); setActionError(''); clearPartnerParam();
+  };
+  const openContactConversation = (contact: MailContact) => {
+    const conversation = ownMessages.filter(m => (String(m.senderId) === contact.id && String(m.receiverId) === String(user?.id)) || (String(m.receiverId) === contact.id && String(m.senderId) === String(user?.id))).sort((a,b) => (Date.parse(b.timestamp) || 0) - (Date.parse(a.timestamp) || 0));
+    if (conversation.length) { setFolder(String(conversation[0].receiverId) === String(user?.id) ? 'inbox' : 'sent'); openMail(conversation[0]); }
+  };
+  const compose = () => {
+    if (!canDiscard()) return;
+    initialDraft.current = { receiverId: '', subject: '', body: '' };
+    setReceiverId(''); setSubject(''); setBody(''); setReplyTo(undefined); setSelectedId(null); setView('compose'); setNotice(''); setActionError(''); clearPartnerParam();
+  };
+  const openMail = (mail: Message) => {
+    if (!canDiscard()) return;
+    setActionError(''); setNotice(''); setSelectedId(String(mail.id)); setView('detail'); clearPartnerParam();
+    if (user && String(mail.receiverId) === String(user.id) && !mail.read) {
+      const result = markMessageAsRead(mail.id);
+      if (!result.ok) setActionError(result.error);
+    }
+  };
+  const reply = (mail: Message) => {
+    const partner = String(mail.senderId) === String(user?.id) ? mail.receiverId : mail.senderId;
+    const oldSubject = subjectOf(mail) === '(Sans objet)' ? '' : subjectOf(mail);
+    const replySubject = (oldSubject ? (/^re\s*:/i.test(oldSubject) ? oldSubject : `Re: ${oldSubject}`) : 'Re: Sans objet').slice(0, 200);
+    initialDraft.current = { receiverId: String(partner), subject: replySubject, body: '' };
+    setReceiverId(String(partner)); setSubject(replySubject); setBody(''); setReplyTo(mail.id); setView('compose'); setActionError(''); setNotice(''); clearPartnerParam();
+  };
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault(); setActionError(''); setNotice('');
+    if ((/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(body) || /(?:\+?\d[\s.()\-]*){9,}/.test(body)) && !window.confirm('Votre message semble contenir des coordonnées. Voulez-vous vraiment les partager ?')) return;
+    const result = sendMail(receiverId, subject, body, replyTo, projectParam && receiverId === partnerParam ? projectParam : undefined);
+    if (!result.ok) { setActionError(result.error); return; }
+    setReceiverId(''); setSubject(''); setBody(''); setReplyTo(undefined); setFolder('sent'); setSelectedId(result.id); setView('detail'); clearPartnerParam();
+    setNotice('Message ou demande enregistré dans ce navigateur. Aucun e-mail réel n’a été envoyé.');
+  };
+  if (isLoading || !user) return null;
+  return <div className="min-h-[calc(100vh-5rem)] bg-[#f5f7fb] px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-[1500px]">
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[11px] font-extrabold uppercase tracking-[0.2em] text-amber-700">Rise Madagascar</p><h1 className="mt-1 text-3xl font-heading font-black tracking-tight text-slate-900">Messagerie</h1><p className="mt-1 text-sm text-slate-500">Retrouvez vos échanges avec la communauté.</p></div><button type="button" onClick={compose} className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700"><PenLine size={17} /> Nouveau message</button></div>
+      <div className="mb-4"><button type="button" onClick={() => setShowPrivacy(!showPrivacy)} className="text-sm font-bold text-amber-700 underline">{showPrivacy ? 'Masquer les réglages de confidentialité' : 'Réglages de confidentialité'}</button>{showPrivacy && <div className="mt-3"><PrivacySettings /></div>}</div>
+      <div className="mb-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><ShieldAlert size={18} className="mt-0.5 shrink-0" /><p><strong>Messagerie de démonstration :</strong> les messages restent dans ce navigateur. Aucun e-mail réel ni notification externe n’est envoyé. Les réglages ne constituent pas une protection sécurisée. Ne partagez pas de données sensibles.</p></div>
+      {(storageError || actionError) && <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{actionError || storageError}</p>}
+      {notice && <p role="status" className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</p>}
+      <div className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+        <aside className="border-b border-slate-100 bg-slate-50/70 p-4 lg:min-h-[650px] lg:border-b-0 lg:border-r"><p className="hidden px-3 pb-3 pt-2 text-[10px] font-bold uppercase tracking-[0.17em] text-slate-400 lg:block">Dossiers</p><nav aria-label="Dossiers de messagerie" className="flex flex-wrap gap-2 lg:flex-col"><button type="button" aria-current={folder === 'inbox' && (view === 'list' || view === 'detail') ? 'page' : undefined} onClick={() => openFolder('inbox')} className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-bold lg:flex-none ${folder === 'inbox' && (view === 'list' || view === 'detail') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-white'}`}><Inbox size={18} className="shrink-0" /><span className="truncate">Réception</span>{unreadTotal > 0 && <span aria-label={`${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}`} className="ml-auto rounded-full bg-amber-400 px-2 py-0.5 text-xs text-slate-900">{unreadTotal}</span>}</button><button type="button" aria-current={folder === 'sent' && (view === 'list' || view === 'detail') ? 'page' : undefined} onClick={() => openFolder('sent')} className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-bold lg:flex-none ${folder === 'sent' && (view === 'list' || view === 'detail') ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-white'}`}><Send size={18} className="shrink-0" /><span className="truncate">Envoyés</span></button><button type="button" aria-current={view === 'contacts' ? 'page' : undefined} onClick={openContacts} className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-3 text-left text-sm font-bold lg:flex-none ${view === 'contacts' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-white'}`}><Users size={18} className="shrink-0" /><span className="truncate">Mes contacts</span><span className="ml-auto text-xs">{acceptedContacts.length}</span></button></nav><div className="mt-8 hidden border-t border-slate-200 px-3 pt-5 text-xs leading-relaxed text-slate-500 lg:block">Les anciens messages restent accessibles, avec la mention « Sans objet » s’ils n’en avaient pas.</div></aside>
+        <section aria-label="Contenu de la messagerie" className="min-w-0 lg:min-h-[650px]">
+          {view === 'contacts' && <div className="px-5 py-6 sm:px-7">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Réseau local</p>
+            <h2 className="mt-1 text-xl font-bold text-slate-900">Mes contacts</h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">Seuls les comptes avec lesquels une demande a été acceptée apparaissent ici. Les demandes en attente ou refusées restent dans Réception et Envoyés.</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_180px]"><div><label className="sr-only" htmlFor="contact-search">Rechercher un contact</label><input id="contact-search" type="search" value={contactSearch} onChange={e => setContactSearch(e.target.value)} placeholder="Rechercher un contact" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm" /></div><div><label className="sr-only" htmlFor="contact-role">Filtrer les contacts</label><select id="contact-role" value={contactRole} onChange={e => setContactRole(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><option value="all">Tous les profils</option><option value="student">Étudiants</option><option value="company">Entreprises</option><option value="individual">Particuliers</option></select></div></div>
+            {storageError ? <p className="mt-8 text-sm text-slate-500">Les contacts ne peuvent pas être chargés.</p> : filteredContacts.length ? <ul className="mt-5 divide-y divide-slate-100">{filteredContacts.map(contact => {const blocked = privacy.blocked.includes(contact.id); return <li key={contact.id} className="flex flex-wrap items-center gap-3 py-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-50 text-xs font-black text-amber-800">{initial(contact.name)}</span><div className="min-w-0 flex-1"><p className="break-words font-bold text-slate-900">{contact.name}{contact.isDemo && <span className="ml-2 text-xs font-medium text-slate-400">Démonstration</span>}</p><p className="mt-1 text-xs text-slate-500">{roleLabel(contact.role)}{blocked ? ' · Bloqué par vous' : ''}{acceptedContacts.filter(c => c.name === contact.name && c.role === contact.role).length > 1 ? ` · Identifiant ${contact.id}` : ''}</p></div><div className="flex flex-wrap gap-2"><button type="button" onClick={() => openContactConversation(contact)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">Voir l’échange</button><button type="button" onClick={() => {if (!blocked && !window.confirm(`Bloquer ${contact.name} ? Les nouveaux messages seront empêchés dans les deux sens.`)) return; const r = setBlocked(contact.id,!blocked); if (!r.ok) {setActionError(r.error);setNotice('');} else {setActionError('');setNotice(blocked ? 'Compte débloqué.' : 'Compte bloqué.');}}} className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold text-slate-700">{blocked ? 'Débloquer' : 'Bloquer'}<span className="sr-only"> {contact.name}</span></button></div></li>})}</ul> : <div className="py-16 text-center"><Users size={30} className="mx-auto text-slate-300" /><p className="mt-4 font-bold text-slate-800">{acceptedContacts.length ? 'Aucun contact ne correspond aux filtres' : 'Aucun contact accepté pour le moment'}</p><p className="mt-2 text-sm text-slate-500">{acceptedContacts.length ? 'Essayez une autre recherche ou catégorie.' : 'Une personne apparaîtra ici après acceptation d’une demande de contact.'}</p></div>}
+          </div>}
+          {view === 'list' && <><div className="border-b border-slate-100 px-5 py-5 sm:px-7"><div className="flex flex-wrap items-baseline justify-between gap-2"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Mes messages</p><h2 className="mt-1 text-xl font-bold text-slate-900">{folder === 'inbox' ? 'Boîte de réception' : 'Messages envoyés'}</h2></div><span className="text-xs font-semibold text-slate-400">{folderMessages.length} message{folderMessages.length !== 1 ? 's' : ''}</span></div><div className="relative mt-5"><Search size={18} className="pointer-events-none absolute left-3.5 top-3.5 text-slate-400" /><input type="search" aria-label="Rechercher dans les messages" value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un nom, un objet ou un message" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-11 pr-4 text-sm text-slate-800 outline-none focus:border-amber-400 focus:bg-white" /></div></div>
+            {storageError ? <div className="p-10 text-center text-sm text-slate-500">La boîte ne peut pas être chargée pour le moment.</div> : filtered.length ? <ul className="divide-y divide-slate-100">{filtered.map(mail => { const name = nameFor(folder === 'inbox' ? mail.senderId : mail.receiverId, user, contacts), unread = folder === 'inbox' && !mail.read; return <li key={String(mail.id)}><button type="button" onClick={() => openMail(mail)} className={`flex w-full items-start gap-3 px-5 py-5 text-left transition hover:bg-amber-50/40 sm:px-7 ${unread ? 'bg-amber-50/30' : 'bg-white'}`}><span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xs font-black ${unread ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'}`}>{initial(name)}</span><span className="min-w-0 flex-1"><span className="flex flex-wrap items-center justify-between gap-2"><span className={`truncate text-sm ${unread ? 'font-black text-slate-900' : 'font-semibold text-slate-700'}`}>{folder === 'sent' ? `À : ${name}` : name}</span><span className="shrink-0 text-xs text-slate-400">{dateLabel(mail.timestamp)}</span></span><span className={`mt-1 block truncate text-sm ${unread ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>{subjectOf(mail)}</span><span className="mt-1 block truncate text-xs text-slate-500">{mail.requestStatus && <strong className="mr-1">{mail.requestStatus === 'pending' ? 'Demande en attente ·' : mail.requestStatus === 'accepted' ? 'Demande acceptée ·' : 'Demande refusée ·'}</strong>}{mail.content}</span></span>{unread && <span aria-label="Non lu" className="mt-2 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-500" />}</button></li>; })}</ul> : <div className="flex min-h-[320px] flex-col items-center justify-center px-6 py-12 text-center"><div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50 text-slate-300">{term ? <Search size={27} /> : <Mail size={27} />}</div><h3 className="mt-4 font-bold text-slate-800">{term ? 'Aucun résultat' : folder === 'inbox' ? 'Votre boîte de réception est vide' : 'Aucun message envoyé'}</h3><p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">{term ? 'Essayez un autre nom ou un autre mot-clé.' : folder === 'inbox' ? 'Les messages qui vous sont destinés apparaîtront ici.' : 'Vos messages enregistrés dans ce navigateur apparaîtront ici.'}</p>{!term && <button type="button" onClick={compose} className="mt-5 text-sm font-bold text-amber-700 hover:text-slate-900">Rédiger un message →</button>}</div>}</>}
+          {view === 'compose' && <div className="px-5 py-6 sm:px-8 sm:py-7"><button type="button" onClick={() => openFolder(folder)} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900"><ArrowLeft size={16} /> Retour aux messages</button><div className="flex items-center gap-3"><div className="rounded-2xl bg-amber-50 p-3 text-amber-700"><PenLine size={20} /></div><div><h2 className="text-xl font-bold text-slate-900">{replyTo != null ? 'Répondre au message' : 'Nouveau message'}</h2><p className="mt-1 text-xs text-slate-500">Sans échange accepté, ce message sera une demande de contact. Simulation locale : brouillon perdu en quittant la page.</p></div></div>
+            <form onSubmit={submit} className="mt-7 space-y-5">{projectParam && receiverId === partnerParam && <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-700">Au sujet du projet : <strong>{projectName(projectParam)}</strong></p>}<div><label htmlFor="mail-recipient" className="text-sm font-bold text-slate-700">Destinataire <span className="font-normal text-slate-400">(compte local)</span></label><select id="mail-recipient" required value={receiverId} onChange={e => { setReceiverId(e.target.value); if (replyTo != null) setReplyTo(undefined); setActionError(''); }} className="mt-2 block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none focus:border-amber-400"><option value="">Sélectionner un compte local</option>{receiverId && !recipientExists && <option value={receiverId}>Compte indisponible</option>}{contacts.map(c => <option value={c.id} key={c.id}>{c.name} · {roleLabel(c.role)}{c.isDemo ? ' · Démonstration' : ''}{contacts.filter(other => other.name === c.name && other.role === c.role).length > 1 ? ` · Identifiant ${c.id}` : ''}</option>)}</select>{receiverId && !recipientExists && <p className="mt-2 text-xs text-red-700">Ce compte n’est pas disponible dans ce navigateur.</p>}{!contacts.length && !storageError && <p className="mt-2 text-xs text-slate-500">Aucun autre compte local disponible.</p>}</div>
+              {receiverId && contacts.some(c => c.id === receiverId && (c.role === 'company' || c.role === 'individual')) && <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Une entreprise ou un particulier peut être contacté par un candidat accepté, ou par un étudiant à qui il a déjà écrit ou proposé un soutien pour son projet. Les demandes et blocages restent soumis aux réglages du destinataire.</p>}
+              <div><label htmlFor="mail-subject" className="text-sm font-bold text-slate-700">Objet</label><input id="mail-subject" required maxLength={200} value={subject} onChange={e => { setSubject(e.target.value); setActionError(''); }} placeholder="Objet de votre message" className="mt-2 block w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-800 outline-none focus:border-amber-400" /></div>
+              <div><label htmlFor="mail-body" className="text-sm font-bold text-slate-700">Message</label><textarea id="mail-body" required maxLength={10000} rows={10} value={body} onChange={e => { setBody(e.target.value); setActionError(''); }} placeholder="Rédigez votre message…" className="mt-2 block w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-800 outline-none focus:border-amber-400" /><p className="mt-2 text-right text-xs text-slate-400">{body.length} / 10 000 caractères</p></div>
+              <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5"><button type="submit" disabled={!recipientExists || !!storageError} className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"><Send size={16} /> Enregistrer le message</button><button type="button" onClick={() => openFolder(folder)} className="rounded-xl px-4 py-3 text-sm font-bold text-slate-500 hover:bg-slate-50">Annuler</button></div></form>
+          </div>}
+          {view === 'detail' && <div className="px-5 py-6 sm:px-8 sm:py-7"><button type="button" onClick={() => openFolder(folder)} className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900"><ArrowLeft size={16} /> Retour à {folder === 'inbox' ? 'la réception' : 'mes envois'}</button>{selected ? <article><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{folder === 'inbox' ? 'Message reçu' : 'Message envoyé'}</p><h2 className="mt-2 break-words text-2xl font-heading font-bold text-slate-900">{subjectOf(selected)}</h2></div><span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-500">{dateLabel(selected.timestamp, true)}</span></div><div className="mt-6 flex items-center gap-3 rounded-2xl bg-slate-50 p-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-xs font-black text-slate-600">{initial(nameFor(selected.senderId, user, contacts))}</span><div className="min-w-0 text-sm"><p className="truncate font-bold text-slate-800">De : {nameFor(selected.senderId, user, contacts)}</p><p className="mt-1 truncate text-xs text-slate-500">À : {nameFor(selected.receiverId, user, contacts)}</p></div></div>{selected.projectId && <p className="mt-4 text-sm text-slate-600">Au sujet du projet : <strong>{projectName(selected.projectId)}</strong></p>}{selected.requestStatus && <p className="mt-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-900">{selected.requestStatus === 'pending' ? 'Demande de contact en attente' : selected.requestStatus === 'accepted' ? 'Demande de contact acceptée' : 'Demande de contact refusée'}</p>}
+          <div className="min-h-[160px] whitespace-pre-wrap break-words py-7 text-sm leading-7 text-slate-700">{selected.content}</div><div className="flex flex-wrap gap-3 border-t border-slate-100 pt-5">{selected.requestStatus === 'pending' && String(selected.receiverId) === String(user.id) && <><button type="button" onClick={() => { const r = decideRequest(selected.id,true); if (!r.ok) setActionError(r.error); else {setActionError(''); setNotice('Demande acceptée. Vous pouvez maintenant échanger dans ce navigateur.');} }} className="rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white">Accepter la demande</button><button type="button" onClick={() => {const r=decideRequest(selected.id,false); if (!r.ok) setActionError(r.error); else {setActionError('');setNotice('Demande refusée.');}}} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold">Refuser la demande</button></>}
+          {selected.requestStatus !== 'pending' && selected.requestStatus !== 'declined' && <button type="button" onClick={() => reply(selected)} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:border-amber-400"><Reply size={16} /> Répondre</button>}
+          <button type="button" onClick={() => { const partner=String(selected.senderId) === String(user.id) ? String(selected.receiverId) : String(selected.senderId); const blocked=privacy.blocked.includes(partner); if (!blocked && !window.confirm('Bloquer ce compte ? Aucun de vous ne pourra envoyer de nouveau message à l’autre.')) return; const r=setBlocked(partner,!blocked); if (!r.ok) setActionError(r.error); else {setActionError('');setNotice(blocked ? 'Compte débloqué.' : 'Compte bloqué.');} }} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">{privacy.blocked.includes(String(selected.senderId) === String(user.id) ? String(selected.receiverId) : String(selected.senderId)) ? 'Débloquer ce compte' : 'Bloquer ce compte'}</button>{String(selected.receiverId) === String(user.id) && <button type="button" onClick={() => {if (!window.confirm('Enregistrer un signalement dans ce navigateur ? Il ne sera pas transmis à une équipe de modération.')) return; const r=reportMessage(selected.id); if (!r.ok) setActionError(r.error); else {setActionError('');setNotice('Signalement enregistré localement uniquement. Aucune équipe n’a été alertée.');}}} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">Signaler</button>}<p className="flex items-center gap-1 text-xs text-slate-400"><CheckCircle2 size={14} /> Échange local uniquement</p></div></article> : <div className="py-16 text-center text-sm text-slate-500">Ce message n’est plus disponible dans votre boîte.</div>}</div>}
+        </section>
       </div>
     </div>
-  );
+  </div>;
 };
-
 export default Messages;

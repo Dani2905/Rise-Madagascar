@@ -8,6 +8,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './pages/Home';
 import Search from './pages/Search';
+import GlobalSearch from './pages/GlobalSearch';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import Resources from './pages/Resources';
@@ -18,6 +19,7 @@ import ProjectDetails from './pages/ProjectDetails';
 import About from './pages/About';
 import Profile from './pages/Profile';
 import PublicCV from './pages/PublicCV';
+import PublicStudentProfile from './pages/PublicStudentProfile';
 import CandidateDetails from './pages/CandidateDetails';
 import Messages from './pages/Messages';
 import Pricing from './pages/Pricing';
@@ -56,9 +58,11 @@ const App: React.FC = () => {
 
               {/* Routes Principales */}
               <Route path="/" element={<MainLayout><Home /></MainLayout>} />
+              <Route path="/discover" element={<MainLayout><GlobalSearch /></MainLayout>} />
               <Route path="/search" element={<MainLayout><Search /></MainLayout>} />
               <Route path="/jobs/:id" element={<MainLayout><JobDetails /></MainLayout>} />
               <Route path="/projects/:id" element={<MainLayout><ProjectDetails /></MainLayout>} />
+              <Route path="/students/:id" element={<MainLayout><PublicStudentProfile /></MainLayout>} />
               <Route path="/companies" element={<MainLayout><Companies /></MainLayout>} />
               <Route path="/companies/:id" element={<MainLayout><CompanyDetails /></MainLayout>} />
               <Route path="/register" element={<MainLayout><Register /></MainLayout>} />

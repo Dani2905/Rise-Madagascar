@@ -57,7 +57,6 @@ const Footer: React.FC = () => {
                 <ul className="space-y-4">
                     <li><FooterLink to="/search">🔍 Trouver un stage / job</FooterLink></li>
                     <li><FooterLink to="/resources">🚀 Lancer un projet</FooterLink></li>
-                    <li><FooterLink to="/resources?tab=guides">📚 Guides Carrière & CV</FooterLink></li>
                     <li><FooterLink to="/register">👤 Créer mon profil gratuit</FooterLink></li>
                 </ul>
             </div>

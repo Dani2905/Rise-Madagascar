@@ -22,7 +22,7 @@ const RegisteredCompaniesStrip: React.FC = () => {
   return (
     <div className="mt-20 border-y border-gray-100 bg-slate-50/50 py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-center text-xs font-bold text-gray-500 uppercase tracking-[0.2em]">Recruteurs inscrits sur Rise</h2>
+        <h2 className="text-center text-xs font-bold text-gray-500 uppercase tracking-[0.2em]">Recruteurs inscrits sur Rise Madagascar</h2>
         {companies.length > 0 ? (
           <div className="mt-7 overflow-x-auto pb-2" aria-label="Entreprises et particuliers inscrits">
             <div className="flex items-center justify-start sm:justify-center gap-4 w-max min-w-full px-1">

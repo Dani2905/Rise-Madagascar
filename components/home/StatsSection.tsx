@@ -66,7 +66,7 @@ const StatsSection: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
-              <h2 className="text-3xl font-heading font-bold mb-4">L'impact Rise en chiffres</h2>
+              <h2 className="text-3xl font-heading font-bold mb-4">L'impact Rise Madagascar en chiffres</h2>
               <p className="text-slate-400 max-w-2xl mx-auto">Nous construisons le plus grand réseau professionnel pour les jeunes à Madagascar.</p>
           </div>
 

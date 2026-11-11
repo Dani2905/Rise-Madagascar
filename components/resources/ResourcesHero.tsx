@@ -1,13 +1,8 @@
 import React from 'react';
-import { Rocket, Lightbulb, BookOpen, Handshake, Search, Users } from 'lucide-react';
+import { Rocket, Lightbulb, Handshake, Search, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-interface ResourcesHeroProps {
-  activeTab: 'projects' | 'guides';
-  setActiveTab: (tab: 'projects' | 'guides') => void;
-}
-
-const ResourcesHero: React.FC<ResourcesHeroProps> = ({ activeTab, setActiveTab }) => {
+const ResourcesHero: React.FC = () => {
   const { user } = useAuth();
   const isRecruiter = user?.role === 'company' || user?.role === 'individual';
 
@@ -57,35 +52,9 @@ const ResourcesHero: React.FC<ResourcesHeroProps> = ({ activeTab, setActiveTab }
                         {content.titleLine1} <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-yellow-200">{content.titleLine2}</span>
                     </h1>
                     
-                    {/* Tab Navigation */}
-                    <div className="flex justify-center lg:justify-start mt-8">
-                        <div className="bg-slate-800/80 backdrop-blur-md p-1.5 rounded-full inline-flex shadow-xl border border-slate-700">
-                        <button
-                            type="button" aria-pressed={activeTab === 'projects'}
-                            onClick={() => setActiveTab('projects')}
-                            className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
-                                activeTab === 'projects' 
-                                ? 'bg-primary text-slate-900 shadow-lg shadow-primary/20' 
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                            }`}
-                        >
-                            <Lightbulb size={18} />
-                            Projets étudiants
-                        </button>
-                        <button
-                            type="button" aria-pressed={activeTab === 'guides'}
-                            onClick={() => setActiveTab('guides')}
-                            className={`px-6 py-3 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2 ${
-                                activeTab === 'guides' 
-                                ? 'bg-primary text-slate-900 shadow-lg shadow-primary/20' 
-                                : 'text-slate-400 hover:text-white hover:bg-white/5'
-                            }`}
-                        >
-                            <BookOpen size={18} />
-                            Outils & Guides
-                        </button>
-                        </div>
-                    </div>
+                    <p className="mt-8 text-sm font-bold text-slate-200 inline-flex items-center gap-2">
+                        <Lightbulb size={18} className="text-primary" /> Projets étudiants
+                    </p>
                 </div>
 
                 {/* RIGHT COL: Detailed Description Box - Solid Style */}

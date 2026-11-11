@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { MessageSquare, Settings, LogOut } from 'lucide-react';
+import { Mail, Settings, LogOut } from 'lucide-react';
 import RoleBasedLinks from './RoleBasedLinks';
 import NavLinks from './NavLinks';
 
@@ -56,7 +56,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                         
                         <NavLink to="/messages" className="block px-3 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-yellow-700" onClick={onClose}>
                             <span className="flex items-center gap-3">
-                                <MessageSquare size={20} /> Messagerie
+                                <Mail size={20} /> Messagerie
                                 {unreadTotal > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-auto">{unreadTotal}</span>}
                             </span>
                         </NavLink>

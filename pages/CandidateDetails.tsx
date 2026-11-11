@@ -13,10 +13,11 @@ const CandidateDetails: React.FC = () => {
       handleContact, 
       handleStatusChange, 
       navigate, 
-      isLoggedIn 
+      isLoggedIn, loading, error
   } = useCandidateDetails();
 
-  if (!candidate) return null;
+  if (loading) return <p className="p-12 text-center text-slate-500">Chargement de la candidature…</p>;
+  if (!candidate) return <div className="p-12 text-center"><h1 className="text-xl font-bold text-slate-900">Candidature indisponible</h1><p className="text-sm text-slate-600 mt-3">{error}</p><button type="button" onClick={() => navigate('/dashboard?tab=candidates')} className="mt-5 font-bold underline">Retour aux candidatures</button></div>;
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
@@ -27,6 +28,8 @@ const CandidateDetails: React.FC = () => {
                 </button>
             </div>
 
+            {error && <p role="alert" className="mb-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">{error}</p>}
+            <p className="mb-5 text-xs text-slate-500">Candidature et échanges simulés dans ce navigateur, sans protection serveur.</p>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
                 {/* --- SIDEBAR GAUCHE --- */}

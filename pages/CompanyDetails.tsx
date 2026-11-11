@@ -11,6 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { getWebsiteUrl } from '../utils/website';
 import { industryLabel } from '../utils/industry';
 import { isDemoRecruiter } from '../utils/demoRecruiter';
+import { useFollowedRecruiters } from '../hooks/useFollowedRecruiters';
+import FollowRecruiterButton from '../components/follow/FollowRecruiterButton';
 
 const CompanyDetails: React.FC = () => {
   const { id } = useParams();
@@ -18,9 +20,12 @@ const CompanyDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [company, setCompany] = useState<any>(null);
+  const [contactError, setContactError] = useState('');
+  const followState = useFollowedRecruiters();
   const [dataVersion, setDataVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const fromDirectory = typeof location.state?.fromDirectory === 'string' && /^\/companies(?:\?|$)/.test(location.state.fromDirectory) ? location.state.fromDirectory : '/companies';
+  const fromFollowing = location.state?.fromFollowing === true && user?.role === 'student';
+  const fromDirectory = fromFollowing ? '/profile?tab=following' : typeof location.state?.fromDirectory === 'string' && /^\/(?:companies|discover)(?:\?|$)/.test(location.state.fromDirectory) ? location.state.fromDirectory : '/companies';
 
   useEffect(() => {
     const refresh = () => setDataVersion(version => version + 1);
@@ -70,26 +75,29 @@ const CompanyDetails: React.FC = () => {
             name: isIndividual ? (individualName || userProfile.companyName || 'Particulier') : (userProfile.companyName || individualName || 'Entreprise'),
             
             // Slogan / Description courte
-            description: (isIndividual ? userProfile.bio || userProfile.description : userProfile.description) || (isIndividual ? "Membre de la communauté Rise" : "Entreprise membre"),
+            description: (isIndividual ? userProfile.bio || userProfile.description : userProfile.description) || '',
             
             // Corps de texte (Bio / Histoire)
-            longDescription: userProfile.bio || userProfile.longDescription || (isIndividual ? "Ce membre n'a pas encore ajouté de description détaillée." : "Cette entreprise n'a pas encore rempli sa présentation."),
+            longDescription: userProfile.bio || userProfile.longDescription || '',
+            activities: typeof userProfile.activities === 'string' ? userProfile.activities : '',
+            values: typeof userProfile.values === 'string' ? userProfile.values : '',
             
             // Visuels
-            logoUrl: userProfile.logoUrl || userProfile.avatarUrl || `https://ui-avatars.com/api/?name=${userProfile.firstName || 'U'}&background=random`,
+            logoUrl: userProfile.logoUrl || userProfile.avatarUrl || '',
             coverUrl: userProfile.coverUrl || null,
             
             // Métadonnées
             jobs: ownerJobs.length,
             activeJobs: ownerJobs,
-            sector: isIndividual ? 'Particulier' : industryLabel(userProfile.industry),
-            location: userProfile.location || userProfile.city || "Madagascar",
+            sector: isIndividual ? 'Particulier' : userProfile.industry ? industryLabel(userProfile.industry) : '',
+            location: userProfile.location || userProfile.city || '',
             website: userProfile.website || "",
             
             // Champs spécifiques Entreprise
             founded: userProfile.founded || "",
-            employees: userProfile.companySize || "N/A",
-            perks: userProfile.perks || [],
+            employees: userProfile.companySize || '',
+            socials: Array.isArray(userProfile.socials) ? userProfile.socials.filter((s: any) => s && typeof s.type === 'string' && typeof s.url === 'string') : [],
+            perks: Array.isArray(userProfile.perks) ? userProfile.perks.filter((p: any) => typeof p === 'string') : [],
             
             // Champs spécifiques Particulier
             needs: dynamicNeeds,
@@ -97,6 +105,7 @@ const CompanyDetails: React.FC = () => {
             // Technique
             role: userProfile.role,
             isDemoProfile: isDemoRecruiter(userProfile),
+            isLocalProfile: true,
             registeredAt: userProfile.registeredAt
         };
 
@@ -117,6 +126,7 @@ const CompanyDetails: React.FC = () => {
             finalProfile = {
                 ...mockData,
                 isDemoProfile: true,
+                isLocalProfile: false,
                 activeJobs: demoJobs,
                 longDescription: mockData.longDescription || mockData.description, // Fallback pour les mocks
                 role: role,
@@ -152,28 +162,23 @@ const CompanyDetails: React.FC = () => {
   }
 
   const handleContact = () => {
-      // Convention : IDs > 1000 ou ID courts connus (1, 102) = Utilisateurs "connectables"
-      if (company.id && !company.isDemoProfile && String(user?.id) !== String(company.id)) { 
-          navigate(`/messages?partner=${encodeURIComponent(String(company.id))}`);
-      } else {
-          window.Toastify({
-              text: "Messagerie indisponible pour ce profil.",
-              style: { background: "#64748b" }
-          }).showToast();
-      }
+      if (company.id != null && !company.isDemoProfile && String(user?.id) !== String(company.id)) {
+          setContactError(''); navigate(`/messages?partner=${encodeURIComponent(String(company.id))}`);
+      } else setContactError('Messagerie indisponible pour ce profil.');
   };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
-      {company.isDemoProfile && <div className="max-w-7xl mx-auto px-4 pt-5"><p className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">Profil de démonstration, non répertorié dans l’annuaire des recruteurs inscrits.</p></div>}
+      <div className="max-w-7xl mx-auto px-4 pt-5"><p className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">{company.isDemoProfile ? 'Profil de démonstration fictif, non répertorié dans l’annuaire des recruteurs inscrits. ' : ''}Les informations et les offres enregistrées restent dans ce navigateur ; aucun partage réel n’est encore disponible.</p></div>
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-0">
              <div className="mb-6">
-                <Link to={fromDirectory} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
-                    <ArrowLeft size={16} className="mr-2" /> Retour à l'annuaire
+                <Link to={location.state?.fromDashboard && user && String(user.id) === String(company.id) ? '/dashboard' : fromDirectory} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
+                    <ArrowLeft size={16} className="mr-2" /> {location.state?.fromDashboard && user && String(user.id) === String(company.id) ? 'Retour à mon profil' : fromFollowing ? 'Retour aux recruteurs suivis' : "Retour à l’annuaire"}
                 </Link>
             </div>
-            <CompanyHeader company={company} />
+            <CompanyHeader company={company} followAction={<FollowRecruiterButton id={String(company.id)} name={company.name} isLocalProfile={company.isLocalProfile === true} followState={followState} />} />
+            {user?.role === 'student' && <p className="-mt-5 mb-6 text-xs text-slate-500">Suivi gratuit dans ce navigateur, sans notification ni accès automatique à la messagerie. <Link to="/profile?tab=following" className="font-bold text-amber-700 underline">Voir mes recruteurs suivis</Link></p>}
         </div>
       </div>
 
@@ -188,15 +193,16 @@ const CompanyDetails: React.FC = () => {
             <div className="lg:col-span-4 space-y-6">
                 <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-lg shadow-primary/5 sticky top-24">
                     <h3 className="font-heading font-bold text-lg text-slate-900 mb-4">Contacter {company.name}</h3>
+                    {contactError && <p role="alert" className="mb-3 text-sm text-red-700">{contactError}</p>}
                     {company.isDemoProfile ? <p className="text-sm text-slate-500">Le contact n’est pas disponible pour un profil de démonstration.</p> : user && String(user.id) === String(company.id) ? <p className="text-sm text-slate-500">Il s’agit de votre profil.</p> : isLoggedIn ? (
                         <>
-                            <p className="text-xs text-slate-500 mb-3">Messagerie de démonstration : les échanges restent dans ce navigateur.</p>
-                            <button 
+                            <p className="text-xs text-slate-500 mb-3">Messagerie locale : les candidats acceptés et les étudiants contactés en premier par ce recruteur peuvent lui écrire. Les règles de confidentialité continuent de s’appliquer.</p>
+                            {user?.role === 'student' && <button 
                                 onClick={handleContact}
                                 className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors mb-3"
                             >
                                 Envoyer un message
-                            </button>
+                            </button>}
                             {getWebsiteUrl(company.website) && (
                                 <a href={getWebsiteUrl(company.website)!} target="_blank" rel="noopener noreferrer" className="block text-center w-full py-3 bg-white border border-gray-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-gray-50 transition-colors">Visiter le site web</a>
                             )}

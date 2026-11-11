@@ -11,6 +11,7 @@ const SubscriptionModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { user, isLoggedIn, isLoading, updateUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [error, setError] = useState('');
   const [selectedRole, setSelectedRole] = useState<SubscriptionRole | null>(user?.role || null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -43,7 +44,8 @@ const SubscriptionModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const activate = () => {
     if (!user || !isLoggedIn || !role || user.role !== role || isSubscriptionActive(user)) return;
-    updateUser({ hasSubscription: true, subscription: createDemoSubscription(role) });
+    try { updateUser({ hasSubscription: true, subscription: createDemoSubscription(role) }); }
+    catch { setError('Impossible d’activer l’abonnement dans ce navigateur.'); return; }
     onClose();
     if (window.Toastify) window.Toastify({ text: 'Abonnement de démonstration activé. Vous pouvez reprendre votre action.', style: { background: '#2563eb' } }).showToast();
   };
@@ -55,8 +57,9 @@ const SubscriptionModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <div className="absolute inset-0 bg-slate-950/60" onClick={onClose} aria-hidden="true" />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="subscription-modal-title" aria-describedby="subscription-modal-description" className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-3xl bg-white p-6 sm:p-8 shadow-2xl">
         <button ref={closeRef} type="button" aria-label="Fermer" onClick={onClose} className="absolute top-5 right-5 rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X size={22} /></button>
-        <h2 id="subscription-modal-title" className="text-2xl font-heading font-black text-slate-900 pr-10">Votre abonnement Rise</h2>
+        <h2 id="subscription-modal-title" className="text-2xl font-heading font-black text-slate-900 pr-10">Votre abonnement Rise Madagascar</h2>
         <p id="subscription-modal-description" className="text-sm text-slate-600 mt-3 leading-relaxed">La consultation reste accessible gratuitement. Un abonnement actif est nécessaire pour postuler ou publier.</p>
+        {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
         {isLoading ? <p className="mt-6 text-sm text-slate-500">Chargement du compte…</p> : !role ? (
           <div className="mt-6 space-y-3">
             <p className="text-sm font-bold text-slate-800">Choisissez votre profil pour découvrir son abonnement :</p>

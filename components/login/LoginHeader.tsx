@@ -12,7 +12,7 @@ const LoginHeader: React.FC = () => {
             Bon retour !
         </h1>
         <p className="mt-2 text-sm text-gray-500">
-            Connectez-vous pour accéder à votre espace Rise.
+            Connectez-vous pour accéder à votre espace Rise Madagascar.
         </p>
     </div>
   );

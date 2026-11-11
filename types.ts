@@ -37,12 +37,16 @@ export enum ApplicationStatus {
 }
 
 export interface Message {
-  id: string;
+  id: string | number;
   senderId: string | number;
   receiverId: string | number;
   content: string;
   timestamp: string;
   read: boolean;
+  subject?: string;
+  replyTo?: string | number;
+  requestStatus?: 'pending' | 'accepted' | 'declined';
+  projectId?: string;
 }
 
 export interface Conversation {

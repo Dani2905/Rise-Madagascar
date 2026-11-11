@@ -9,7 +9,7 @@ const FaqSection: React.FC = () => {
     <div className="mt-20 pt-12 border-t border-gray-200">
         <div className="text-center mb-10">
             <h3 className="text-2xl font-heading font-bold text-slate-900 mb-2">Questions Fréquentes</h3>
-            <p className="text-gray-500">Questions sur les projets étudiants sur Rise.</p>
+            <p className="text-gray-500">Questions sur les projets étudiants sur Rise Madagascar.</p>
         </div>
         
         <div className="max-w-3xl mx-auto space-y-4">

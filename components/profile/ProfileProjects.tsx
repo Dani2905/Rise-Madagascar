@@ -7,7 +7,7 @@ import ProjectSupportsModal from './ProjectSupportsModal';
 import { useAuth } from '../../context/AuthContext';
 import { useSubscription } from '../../context/SubscriptionContext';
 import { ProjectSupport } from '../../types';
-import { canPerformAction } from '../../utils/subscription';
+import { canPerformAction, getCurrentLocalSession } from '../../utils/subscription';
 
 interface ProfileProjectsProps {
     projects?: any[];
@@ -15,6 +15,7 @@ interface ProfileProjectsProps {
 }
 
 const EMPTY_PROJECTS: any[] = [];
+const ownsStoredProject = (project: any, user: any) => project?.ownerId != null ? String(project.ownerId) === String(user?.id) : typeof project?.studentEmail === 'string' && typeof user?.email === 'string' && project.studentEmail.trim().toLowerCase() === user.email.trim().toLowerCase();
 
 const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJECTS, initialCreateMode = false }) => {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
   const [view, setView] = useState<'list' | 'form'>('list');
   const [editingProject, setEditingProject] = useState<any>(null);
   const [showSubscriptionNotice, setShowSubscriptionNotice] = useState(false);
+  const [storageError, setStorageError] = useState('');
   const directCreateHandled = useRef(false);
   const directCreatePending = useRef(false);
 
@@ -84,7 +86,11 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
   }, [initialCreateMode, user, openSubscription]);
 
   const handleSave = (projectData: any) => {
-      if (!canPerformAction(user, 'publishProject')) {
+      setStorageError('');
+      const current = getCurrentLocalSession(user);
+      if (!current) { setStorageError('Votre session a changé. Reconnectez-vous avant d’enregistrer le projet.'); return; }
+      if (!canPerformAction(current, 'publishProject')) {
+          window.dispatchEvent(new StorageEvent('storage', { key: 'rise_user_data' }));
           setShowSubscriptionNotice(true);
           openSubscription();
           return;
@@ -99,7 +105,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
           if (!Array.isArray(parsed)) throw new Error('invalid projects');
           publicProjects = parsed;
       } catch {
-          if (window.Toastify) window.Toastify({ text: 'Les projets locaux sont illisibles ; la sauvegarde a été interrompue.', style: { background: '#ef4444' } }).showToast();
+          setStorageError('Les projets locaux sont illisibles ; la sauvegarde a été interrompue.');
           return;
       }
 
@@ -116,7 +122,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
 
       if (editingProject) {
           if (editingProject.ownerId != null && String(editingProject.ownerId) !== String(user.id)) {
-              if (window.Toastify) window.Toastify({ text: 'Ce projet appartient à un autre compte.', style: { background: '#ef4444' } }).showToast();
+              setStorageError('Ce projet appartient à un autre compte.');
               return;
           }
           projectToSave = { 
@@ -129,11 +135,13 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
           };
           updatedList = localProjects.map(p => p.id === editingProject.id ? projectToSave : p);
           
+          const matches = publicProjects.filter((p: any) => p?.id != null && String(p.id) === String(editingProject.id));
+          if (matches.length > 1) { setStorageError('Ce projet comporte des identifiants en double.'); return; }
           const existingPublicIndex = publicProjects.findIndex((p: any) => p?.id != null && String(p.id) === String(editingProject.id));
           if (existingPublicIndex >= 0) {
               const existing = publicProjects[existingPublicIndex];
-              if (existing.ownerId != null && String(existing.ownerId) !== String(user.id)) {
-                  if (window.Toastify) window.Toastify({ text: 'Ce projet appartient à un autre compte.', style: { background: '#ef4444' } }).showToast();
+              if (!ownsStoredProject(existing, user)) {
+                  setStorageError('Ce projet appartient à un autre compte.');
                   return;
               }
               publicProjects[existingPublicIndex] = projectToSave;
@@ -142,20 +150,24 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
           }
 
       } else {
-          const newId = Date.now();
+          let newId = Date.now();
+          while (publicProjects.some(p => p?.id != null && String(p.id) === String(newId)) || localProjects.some(p => p?.id != null && String(p.id) === String(newId))) newId++;
           projectToSave = { id: newId, ...commonMetadata, ...projectData, createdAt: new Date().toISOString() };
           updatedList = [projectToSave, ...localProjects];
           publicProjects.unshift(projectToSave);
 
       }
 
-      try { localStorage.setItem('rise_custom_projects', JSON.stringify(publicProjects)); }
-      catch {
-          if (window.Toastify) window.Toastify({ text: 'Impossible de sauvegarder le projet dans ce navigateur.', style: { background: '#ef4444' } }).showToast();
+      const previousProjects = localStorage.getItem('rise_custom_projects');
+      try {
+          localStorage.setItem('rise_custom_projects', JSON.stringify(publicProjects));
+          try { updateUser({ myProjects: updatedList }); }
+          catch (error) { if (previousProjects === null) localStorage.removeItem('rise_custom_projects'); else localStorage.setItem('rise_custom_projects', previousProjects); throw error; }
+      } catch {
+          setStorageError('Impossible de sauvegarder le projet dans ce navigateur.');
           return;
       }
       setLocalProjects(updatedList);
-      updateUser({ myProjects: updatedList });
       if (window.Toastify) window.Toastify({ text: editingProject ? 'Projet mis à jour dans ce navigateur.' : 'Projet publié dans ce navigateur.', style: { background: '#2563eb' } }).showToast();
       setView('list');
       setEditingProject(null);
@@ -183,17 +195,23 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
 
   const handleDelete = (id: number) => {
       if (!user || !window.confirm("Supprimer ce projet ?")) return;
+      setStorageError('');
       try {
+          if (!getCurrentLocalSession(user)) throw new Error('session');
           const parsed = JSON.parse(localStorage.getItem('rise_custom_projects') || '[]');
           if (!Array.isArray(parsed)) throw new Error('invalid projects');
-          const updatedPublic = parsed.filter((p: any) => String(p?.id) !== String(id) || (p?.ownerId != null && String(p.ownerId) !== String(user.id)));
+          const matches = parsed.filter((p: any) => p?.id != null && String(p.id) === String(id));
+          if (matches.length > 1 || (matches.length === 1 && !ownsStoredProject(matches[0], user))) throw new Error('ownership');
+          const updatedPublic = parsed.filter((p: any) => p !== matches[0]);
           const updatedList = localProjects.filter(p => String(p.id) !== String(id));
+          const previousProjects = localStorage.getItem('rise_custom_projects');
           localStorage.setItem('rise_custom_projects', JSON.stringify(updatedPublic));
+          try { updateUser({ myProjects: updatedList }); }
+          catch (error) { if (previousProjects === null) localStorage.removeItem('rise_custom_projects'); else localStorage.setItem('rise_custom_projects', previousProjects); throw error; }
           setLocalProjects(updatedList);
-          updateUser({ myProjects: updatedList });
           if (window.Toastify) window.Toastify({ text: "Projet supprimé.", style: { background: "#64748b" } }).showToast();
       } catch {
-          if (window.Toastify) window.Toastify({ text: 'Impossible de supprimer le projet : données locales illisibles.', style: { background: '#ef4444' } }).showToast();
+          setStorageError('Impossible de supprimer le projet : données locales illisibles.');
       }
   };
 
@@ -207,6 +225,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
       return (
           <div className="animate-fade-in">
               {subscriptionNotice}
+              {storageError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{storageError}</p>}
               <ProjectForm initialData={editingProject} onSave={handleSave} onCancel={() => { setView('list'); setEditingProject(null); navigate('/profile?tab=projects'); }} />
           </div>
       );
@@ -216,6 +235,7 @@ const ProfileProjects: React.FC<ProfileProjectsProps> = ({ projects = EMPTY_PROJ
   return (
     <div className="space-y-6 animate-fade-in delay-100">
         {subscriptionNotice}
+        {storageError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{storageError}</p>}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white p-6 rounded-2xl border border-gray-100 shadow-sm gap-4">
             <div>
                 <h3 className="font-heading font-bold text-lg text-slate-900 flex items-center gap-2">

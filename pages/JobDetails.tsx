@@ -4,7 +4,6 @@ import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { getAvailableJobs } from '../utils/jobSearch';
 import { industryLabel } from '../utils/industry';
-import LoginWall from '../components/job-details/LoginWall';
 import JobDetailsHeader from '../components/job-details/JobDetailsHeader';
 import JobDescription from '../components/job-details/JobDescription';
 import JobSidebar from '../components/job-details/JobSidebar';
@@ -16,14 +15,15 @@ const JobDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const fromSearch = typeof location.state?.fromSearch === 'string' && /^\/search(?:\?|$)/.test(location.state.fromSearch) ? location.state.fromSearch : '/search';
+  const fromSearch = typeof location.state?.fromSearch === 'string' && /^\/(?:search|discover)(?:\?|$)/.test(location.state.fromSearch) ? location.state.fromSearch : '/search';
   const fromCompany = typeof location.state?.fromCompany === 'string' && /^\/companies\/[^/?]+(?:\?|$)/.test(location.state.fromCompany) ? location.state.fromCompany : null;
   const returnPath = fromCompany || fromSearch;
   const returnState = fromCompany && typeof location.state?.fromDirectory === 'string' ? { fromDirectory: location.state.fromDirectory } : undefined;
-  const { user, isLoggedIn, updateUser } = useAuth();
+  const { user, isLoggedIn, isLoading: authLoading, updateUser } = useAuth();
   const { openSubscription } = useSubscription();
   const [isLoading, setIsLoading] = useState(true);
   const [job, setJob] = useState<any>(null);
+  const [feedback, setFeedback] = useState<{ kind: 'error' | 'success'; text: string } | null>(null);
 
   // 1. Charger le job et hydrater avec les données du propriétaire
   useEffect(() => {
@@ -81,7 +81,7 @@ const JobDetails: React.FC = () => {
             requirements: (typeof foundJob.requirements === 'object' && foundJob.requirements !== null) ? foundJob.requirements : {
                 education: 'Non spécifié',
                 experience: (foundJob as any).experienceLevel || 'Non spécifié',
-                language: 'Français'
+                language: 'Non spécifié'
             }
         };
         setJob(normalizedJob);
@@ -91,130 +91,55 @@ const JobDetails: React.FC = () => {
   }, [id]);
 
   const handleApply = () => {
+    setFeedback(null);
+    if (authLoading) return;
     if (!job || !getAvailableJobs().some(item => String(item.id) === String(job.id))) {
-        setJob(null);
-        if (window.Toastify) window.Toastify({ text: "Cette offre n'est plus disponible.", style: { background: '#ef4444' } }).showToast();
-        return;
+      setJob(null); return;
     }
-    if (!user) {
-        navigate('/login', { state: { returnTo: `${location.pathname}${location.search}`, returnState: location.state } });
-        return;
-    }
-    if (user.role !== 'student') {
-        window.Toastify({
-            text: "Seuls les étudiants peuvent postuler.",
-            style: { background: "#f59e0b" }
-        }).showToast();
-        return;
-    }
-
-    if (!canPerformAction(user, 'apply')) {
-        window.Toastify({
-            text: "Un abonnement étudiant actif est nécessaire pour postuler.",
-            style: { background: "#ef4444" }
-        }).showToast();
-        openSubscription();
-        return;
-    }
-
-    // --- 1. VERIFICATION DOUBLONS (Source de vérité : rise_applications) ---
-    let globalApps: any[];
+    if (!user || !isLoggedIn) { navigate('/login', { state: { returnTo: `${location.pathname}${location.search}`, returnState: location.state } }); return; }
+    if (user.role !== 'student') { setFeedback({ kind: 'error', text: 'Seuls les étudiants peuvent postuler.' }); return; }
+    // Contrôler la session et l’abonnement les plus récents, pas seulement l’état React.
+    let current: any;
     try {
-        const parsed = JSON.parse(localStorage.getItem('rise_applications') || '[]');
-        if (!Array.isArray(parsed)) throw new Error('invalid applications');
-        globalApps = parsed;
-    } catch {
-        if (window.Toastify) window.Toastify({ text: "Les candidatures enregistrées sont illisibles ; impossible de poursuivre sans risque de les écraser.", style: { background: '#ef4444' } }).showToast();
-        return;
-    }
-    
-    // On vérifie si CET utilisateur a déjà postulé à CE job
-    const alreadyApplied = globalApps.some((app: any) => 
-        (app?.jobId != null && String(app.jobId) === String(job.id) && app.applicantId != null && String(app.applicantId) === String(user.id)) ||
-        (app?.jobId != null && String(app.jobId) === String(job.id) && user.email && app.email === user.email) // Fallback email
-    );
-
-    if (alreadyApplied) {
-        window.Toastify({
-            text: "Vous avez déjà candidaté à cette offre.",
-            style: { background: "#f59e0b" } // Orange warning
-        }).showToast();
-        return;
+      current = JSON.parse(localStorage.getItem('rise_user_data') || 'null');
+      if (!localStorage.getItem('rise_session_token') || !current || String(current.id) !== String(user.id) || current.role !== 'student') throw new Error();
+    } catch { setFeedback({ kind: 'error', text: 'Votre session a changé. Reconnectez-vous avant de postuler.' }); return; }
+    if (!canPerformAction(current, 'apply')) {
+      setFeedback({ kind: 'error', text: 'Un abonnement étudiant actif est nécessaire pour postuler.' });
+      window.dispatchEvent(new StorageEvent('storage', { key: 'rise_user_data' }));
+      openSubscription(); return;
     }
 
-    // --- 2. CRÉATION DE L'OBJET CANDIDATURE (SNAPSHOT) ---
-    // On fige les données de l'étudiant à l'instant T
-    const newApplication = {
-        id: Date.now(), // ID unique de la candidature
-        jobId: job.id,  // Lien vers l'offre
-        applicantId: user.id || user.email, // Lien vers l'étudiant
-        
-        // Données Job (pour affichage rapide côté étudiant)
-        jobTitle: job.title,
-        company: job.company,
-        contractType: job.type,
-        
-        // Données Étudiant (Snapshot pour le recruteur)
-        name: `${user.firstName} ${user.lastName}`,
-        email: user.email,
-        phone: user.phone || "Non renseigné",
-        location: user.location || "Madagascar",
-        role: user.title || (user.studyField ? `Étudiant en ${user.studyField}` : "Candidat"),
-        school: user.school || "Non renseigné",
-        avatarUrl: user.avatarUrl,
-        bio: user.bio || "Je suis très motivé par cette opportunité.",
-        skills: user.skills || [],
-        experiences: user.experiences || [],
-        education: user.education || [],
-        
-        // Métadonnées
-        status: 'pending', // pending, interview, accepted, rejected
-        date: new Date().toLocaleDateString('fr-FR'), // Format français
-        appliedAt: new Date().toISOString(),
-        statusColor: "text-blue-600 bg-blue-50 border-blue-100" // Défaut visuel
-    };
-
-    // --- 3. SAUVEGARDE GLOBALE ---
-    globalApps.push(newApplication);
-    localStorage.setItem('rise_applications', JSON.stringify(globalApps));
-
-    // --- 4. SAUVEGARDE LOCALE (Côté User Context pour UI immédiate) ---
-    // C'est optionnel si le dashboard étudiant lit directement globalApps, 
-    // mais utile pour garder l'objet user cohérent dans la session.
-    const currentUserApps = user.applications || [];
-    updateUser({ applications: [newApplication, ...currentUserApps] });
-
-    // --- 5. MISE À JOUR DU COMPTEUR DE L'OFFRE ---
-    // Si c'est un job dynamique (dans localStorage), on incrémente son compteur
-    let customJobs: any[] = [];
+    const applicationsRaw = localStorage.getItem('rise_applications');
+    const jobsRaw = localStorage.getItem('rise_jobs');
     try {
-        const parsed = JSON.parse(localStorage.getItem('rise_jobs') || '[]');
-        customJobs = Array.isArray(parsed) ? parsed : [];
-    } catch { /* Pas de compteur local lisible. */ }
-    const jobIndex = customJobs.findIndex((j: any) => j?.id != null && String(j.id) === String(job.id));
-    
-    if (jobIndex !== -1) {
-        const currentCandidates = parseInt(customJobs[jobIndex].candidates || 0);
-        customJobs[jobIndex].candidates = currentCandidates + 1;
-        localStorage.setItem('rise_jobs', JSON.stringify(customJobs));
-        
-        // Mise à jour de l'état local pour reflet immédiat (optionnel)
-        setJob((prev: any) => ({ ...prev, candidates: (prev.candidates || 0) + 1 }));
-    }
-
-    // Feedback Succès
-    window.Toastify({
-        text: "Candidature enregistrée dans ce navigateur (démonstration).",
-        duration: 3000,
-        gravity: "top",
-        position: "center",
-        style: { background: "linear-gradient(to right, #10B981, #059669)" }
-    }).showToast();
-
-    // Redirection
-    setTimeout(() => {
-        navigate('/profile?tab=applications');
-    }, 1500);
+      const apps = JSON.parse(applicationsRaw || '[]'), jobs = JSON.parse(jobsRaw || '[]');
+      if (!Array.isArray(apps) || !Array.isArray(jobs) || (current.applications != null && !Array.isArray(current.applications))) throw new Error('invalid');
+      const own = (a: any) => a?.applicantId != null ? String(a.applicantId) === String(current.id) : typeof a?.email === 'string' && typeof current.email === 'string' && a.email.trim().toLowerCase() === current.email.trim().toLowerCase();
+      if (apps.some(a => a?.jobId != null && String(a.jobId) === String(job.id) && own(a))) { setFeedback({ kind: 'error', text: 'Vous avez déjà candidaté à cette offre.' }); return; }
+      const matches = jobs.filter(j => j?.id != null && String(j.id) === String(job.id));
+      if (matches.length > 1 || (matches.length === 1 && matches[0].status && matches[0].status !== 'Actif')) throw new Error('invalid');
+      let appId = Date.now(); while (apps.some(a => a?.id != null && String(a.id) === String(appId))) appId++;
+      const application = {
+        id: appId, jobId: job.id, applicantId: current.id, jobTitle: job.title, company: job.company, contractType: job.type,
+        name: `${current.firstName || ''} ${current.lastName || ''}`.trim(), email: current.email || '', phone: current.phone || '',
+        location: current.location || '', role: current.title || (current.studyField ? `Étudiant en ${current.studyField}` : 'Étudiant'),
+        school: current.school || '', avatarUrl: current.avatarUrl || '', bio: current.bio || '', skills: Array.isArray(current.skills) ? current.skills : [],
+        experiences: Array.isArray(current.experiences) ? current.experiences : [], education: Array.isArray(current.education) ? current.education : [],
+        status: 'pending', date: new Date().toLocaleDateString('fr-FR'), appliedAt: new Date().toISOString(), statusColor: 'text-blue-600 bg-blue-50 border-blue-100'
+      };
+      const nextApps = [...apps, application];
+      const nextJobs = jobs.map(j => j === matches[0] ? { ...j, candidates: nextApps.filter(a => a?.jobId != null && String(a.jobId) === String(job.id)).length } : j);
+      try {
+        localStorage.setItem('rise_applications', JSON.stringify(nextApps));
+        if (matches.length) localStorage.setItem('rise_jobs', JSON.stringify(nextJobs));
+        updateUser({ applications: [application, ...(current.applications || [])] });
+      } catch (e) {
+        try { if (applicationsRaw === null) localStorage.removeItem('rise_applications'); else localStorage.setItem('rise_applications', applicationsRaw); if (jobsRaw === null) localStorage.removeItem('rise_jobs'); else localStorage.setItem('rise_jobs', jobsRaw); } catch { /* stockage indisponible */ }
+        throw e;
+      }
+      setFeedback({ kind: 'success', text: 'Candidature enregistrée dans ce navigateur. Aucun envoi réel n’a été effectué.' });
+    } catch { setFeedback({ kind: 'error', text: 'Impossible d’enregistrer la candidature : données locales illisibles ou stockage indisponible.' }); }
   };
 
   if (isLoading) return null;
@@ -234,9 +159,6 @@ const JobDetails: React.FC = () => {
       );
   }
 
-  if (!isLoggedIn) {
-    return <LoginWall jobTitle={job.title} companyName={job.company} backTo={returnPath} backState={returnState} />;
-  }
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 font-sans">
@@ -249,6 +171,7 @@ const JobDetails: React.FC = () => {
             </Link>
         </div>
 
+        {feedback && <div role={feedback.kind === 'error' ? 'alert' : 'status'} className={`mb-5 rounded-xl border p-4 text-sm ${feedback.kind === 'error' ? 'border-red-200 bg-red-50 text-red-800' : 'border-green-200 bg-green-50 text-green-800'}`}><p>{feedback.text}</p>{feedback.kind === 'success' && <Link className="mt-2 inline-block font-bold underline" to="/profile?tab=applications">Voir mes candidatures</Link>}</div>}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
             {/* LEFT COLUMN (Main Content) */}

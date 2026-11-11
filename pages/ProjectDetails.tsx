@@ -9,7 +9,9 @@ import ProjectSidebar from '../components/project-details/ProjectSidebar';
 const ProjectDetails: React.FC = () => {
   const { id } = useParams();
   const location = useLocation();
-  const returnPath = typeof location.state?.fromResources === 'string' && /^\/resources(?:\?|$)/.test(location.state.fromResources) ? location.state.fromResources : '/resources';
+  const fromStudent = typeof location.state?.fromStudent === 'string' && /^\/students\/[^/?#]+$/.test(location.state.fromStudent) ? location.state.fromStudent : null;
+  const returnPath = fromStudent || (typeof location.state?.fromResources === 'string' && /^\/resources(?:\?|$)/.test(location.state.fromResources) ? location.state.fromResources : '/resources');
+  const returnLabel = fromStudent ? 'Retour au profil étudiant' : 'Retour aux projets';
   const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -33,7 +35,7 @@ const ProjectDetails: React.FC = () => {
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Projet introuvable</h1>
             <p className="text-gray-500 mb-8">Le projet que vous cherchez n'existe pas ou a été supprimé.</p>
             <Link to={returnPath} className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold">
-                Retour aux ressources
+                {returnLabel}
             </Link>
         </div>
     );
@@ -46,7 +48,7 @@ const ProjectDetails: React.FC = () => {
         {/* Breadcrumb */}
         <div className="mb-6">
             <Link to={returnPath} className="inline-flex items-center text-sm font-medium text-gray-500 hover:text-primary transition-colors">
-                <ArrowLeft size={16} className="mr-2" /> Retour aux projets
+                <ArrowLeft size={16} className="mr-2" /> {returnLabel}
             </Link>
         </div>
 
