@@ -15,7 +15,9 @@ export function getPublicProjects(): Project[] {
     const text = (value: unknown, fallback = '') => typeof value === 'string' && value.trim() ? value : fallback;
     const progress = Number(item.progress), likes = Number(item.likes);
     projects.push({
-      ...item,
+      id: item.id,
+      ...(item.ownerId != null && ['string','number'].includes(typeof item.ownerId) ? {ownerId: item.ownerId} : {}),
+      ...(typeof item.createdAt === 'string' ? {createdAt: item.createdAt} : {}),
       title: text(item.title, 'Projet sans titre'), student: text(item.student, 'Étudiant'),
       category: text(item.category, 'Autre'), need: text(item.need, 'Non précisé'),
       description: text(item.description), problem: text(item.problem), solution: text(item.solution), school: text(item.school), stage: text(item.stage, 'Non précisé'),
@@ -23,8 +25,8 @@ export function getPublicProjects(): Project[] {
       likes: Number.isFinite(likes) ? Math.max(0, likes) : 0,
       imageColor: text(item.imageColor, 'bg-blue-50 text-blue-600'),
       tags: Array.isArray(item.tags) ? item.tags.filter((v: unknown) => typeof v === 'string') : [],
-      team: Array.isArray(item.team) ? item.team.filter((v: any) => v && typeof v.name === 'string' && typeof v.role === 'string') : [],
-      roadmap: Array.isArray(item.roadmap) ? item.roadmap.filter((v: any) => v && typeof v.title === 'string' && typeof v.date === 'string') : [],
+      team: Array.isArray(item.team) ? item.team.filter((v: any) => v && typeof v.name === 'string' && typeof v.role === 'string').map((v: any) => ({name:v.name,role:v.role})) : [],
+      roadmap: Array.isArray(item.roadmap) ? item.roadmap.filter((v: any) => v && typeof v.title === 'string' && typeof v.date === 'string').map((v: any) => ({title:v.title,date:v.date,done:v.done === true})) : [],
       isDemo: item.isDemo === true || (item.ownerId != null && demoIds.has(String(item.ownerId)))
     });
   }

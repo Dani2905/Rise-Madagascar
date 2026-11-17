@@ -10,6 +10,11 @@ const ProjectContent: React.FC<ProjectContentProps> = ({ project }) => {
   return (
     <div className="space-y-8 animate-fade-in delay-100">
         
+        <section className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
+            <h2 className="text-xl font-heading font-bold text-slate-900 mb-4">Présentation du projet</h2>
+            <p className="text-gray-600 leading-relaxed text-lg whitespace-pre-wrap break-words">{project.description || 'Présentation non renseignée.'}</p>
+            {project.tags.length > 0 && <div aria-label="Mots-clés du projet" className="mt-5 flex flex-wrap gap-2">{project.tags.map((tag,i)=><span key={`${tag}-${i}`} className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{tag}</span>)}</div>}
+        </section>
         {/* The Problem */}
         <section className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
             <h3 className="text-xl font-heading font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -27,7 +32,7 @@ const ProjectContent: React.FC<ProjectContentProps> = ({ project }) => {
                 <Lightbulb className="text-primary fill-primary" /> La Solution
             </h3>
             <p className="text-slate-800 leading-relaxed text-lg relative z-10">
-                {project.solution || project.description}
+                {project.solution || "Information non renseignée."}
             </p>
             
 

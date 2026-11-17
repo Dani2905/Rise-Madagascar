@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { getPublicStudent, PublicStudent } from '../utils/publicStudent';
 import { getPublicProjects } from '../utils/projects';
 import { Project } from '../data/resourcesData';
+import StudentRating from '../components/ratings/StudentRating';
 
 const PublicStudentProfile: React.FC = () => {
   const { id = '' } = useParams();
@@ -77,6 +78,7 @@ const PublicStudentProfile: React.FC = () => {
           <section className="bg-white p-6 sm:p-8 rounded-2xl border border-slate-100 shadow-sm"><h2 className="text-xl font-heading font-bold text-slate-900 mb-5 flex items-center gap-2"><Briefcase className="text-purple-600" size={21} /> Expériences</h2>{student.experiences.length ? <div className="space-y-5">{student.experiences.map((exp, i) => <div key={i}><h3 className="font-bold text-slate-900">{exp.role}</h3><p className="text-sm text-slate-600">{[exp.company, exp.date].filter(Boolean).join(' • ')}</p>{exp.description && <p className="text-sm text-slate-600 mt-2 whitespace-pre-wrap">{exp.description}</p>}</div>)}</div> : <p className="text-sm text-slate-500">Aucune expérience renseignée.</p>}</section>
         </div>
         <div className="space-y-6">
+          <StudentRating studentId={student.id} />
           <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm"><h2 className="font-heading font-bold text-lg text-slate-900 mb-4 flex items-center gap-2"><Sparkles className="text-yellow-600" size={20} /> Compétences</h2>{student.skills.length ? <div className="flex flex-wrap gap-2">{student.skills.map((skill, i) => <span key={i} className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm text-slate-700">{skill}</span>)}</div> : <p className="text-sm text-slate-500">Aucune compétence renseignée.</p>}<h3 className="font-bold text-slate-900 mt-6 mb-3">Langues</h3><p className="text-sm text-slate-600">{student.languages.length ? student.languages.join(' · ') : 'Aucune langue renseignée.'}</p></section>
           <section className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm"><h2 className="font-heading font-bold text-lg text-slate-900 mb-4 flex items-center gap-2"><Award className="text-yellow-600" size={20} /> Formation</h2>{education.length ? <div className="space-y-4">{education.map((edu, i) => <div key={i}><h3 className="font-bold text-sm text-slate-900">{edu.degree}</h3><p className="text-sm text-slate-600">{edu.school}</p><p className="text-xs text-slate-500 mt-1">{[edu.date, edu.mention].filter(Boolean).join(' • ')}</p></div>)}</div> : <p className="text-sm text-slate-500">Aucune formation renseignée.</p>}</section>
         </div>

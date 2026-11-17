@@ -3,6 +3,7 @@ import React, { useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLoginLogic } from '../hooks/useLoginLogic';
+import { cloudAuthEnabled } from '../utils/supabase';
 import { returnPathForRole } from '../utils/localAuth';
 
 // Sub-components
@@ -44,8 +45,7 @@ const Login: React.FC = () => {
             
             <LoginHeader />
 
-            <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900"><strong>Démonstration locale :</strong> les comptes et la session restent dans ce navigateur. Il n’y a pas de sécurité serveur ni de récupération par e-mail. N’utilisez pas un mot de passe réel ou réutilisé.</p>
-            <DemoLoginButtons fillDemoCredentials={fillDemoCredentials} />
+            {cloudAuthEnabled ? <p className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs leading-relaxed text-blue-900"><strong>Connexion Supabase :</strong> le compte est vérifié en ligne. Les autres fonctionnalités restent des simulations locales non synchronisées.</p> : <><p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900"><strong>Démonstration locale :</strong> les comptes et la session restent dans ce navigateur. Il n’y a pas de sécurité serveur ni de récupération par e-mail. N’utilisez pas un mot de passe réel ou réutilisé.</p><DemoLoginButtons fillDemoCredentials={fillDemoCredentials} /></>}
 
             <LoginForm 
                 formData={formData} 

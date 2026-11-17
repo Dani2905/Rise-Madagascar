@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useCandidateDetails } from '../hooks/useCandidateDetails';
 import CandidateSidebar from '../components/candidate-details/CandidateSidebar';
 import CandidateMainContent from '../components/candidate-details/CandidateMainContent';
+import StudentRating from '../components/ratings/StudentRating';
 
 const CandidateDetails: React.FC = () => {
   const { 
@@ -33,7 +34,7 @@ const CandidateDetails: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
                 {/* --- SIDEBAR GAUCHE --- */}
-                <div className="lg:col-span-4 lg:sticky lg:top-24">
+                <div className="lg:col-span-4 lg:sticky lg:top-24 space-y-5">
                     <CandidateSidebar 
                         candidate={candidate}
                         status={status}
@@ -41,6 +42,7 @@ const CandidateDetails: React.FC = () => {
                         handleContact={handleContact}
                         handleStatusChange={handleStatusChange}
                     />
+                    {candidate.realUserId != null && <StudentRating studentId={candidate.realUserId} />}
                 </div>
 
                 {/* --- CONTENU PRINCIPAL --- */}

@@ -5,6 +5,7 @@ import { RegisterFormFields } from '../components/register/RegisterFormFields';
 import { FileUpload } from '../components/register/FileUpload';
 import { useRegisterForm } from '../hooks/useRegisterForm';
 import { useAuth } from '../context/AuthContext';
+import { cloudAuthEnabled } from '../utils/supabase';
 import { returnPathForRole } from '../utils/localAuth';
 import LoginVisuals from '../components/login/LoginVisuals';
 
@@ -15,6 +16,7 @@ const Register: React.FC = () => {
   
   const {
     accountType,
+    confirmation,
     handleAccountTypeChange,
     formData,
     file,
@@ -56,7 +58,8 @@ const Register: React.FC = () => {
                 </p>
             </div>
 
-            <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900"><strong>Démonstration locale :</strong> ce compte n’existe que dans ce navigateur, sans serveur ni récupération par e-mail. Utilisez des informations fictives et un mot de passe non réutilisé : ces données ne sont pas sécurisées.</p>
+            {cloudAuthEnabled ? <p className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-xs leading-relaxed text-blue-900"><strong>Compte Supabase en développement :</strong> une confirmation par e-mail est nécessaire. Les autres fonctionnalités restent locales et non synchronisées. Le service e-mail de test est limité aux membres de l’organisation Supabase.</p> : <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-relaxed text-amber-900"><strong>Démonstration locale :</strong> ce compte n’existe que dans ce navigateur, sans serveur ni récupération par e-mail. Utilisez des informations fictives et un mot de passe non réutilisé : ces données ne sont pas sécurisées.</p>}
+            {confirmation && <p role="status" className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-900">Si cette adresse peut recevoir les e-mails du projet et n’est pas déjà inscrite, consultez votre boîte e-mail et ouvrez le lien de confirmation sur cet appareil. Vous pourrez ensuite vous connecter.</p>}
             <p className="text-sm font-bold text-slate-800 mb-3" id="register-role-label">Choisissez votre profil</p>
             {/* Account Type Selector - Highlighted Cards */}
             <div role="group" aria-labelledby="register-role-label" className="grid grid-cols-3 gap-3 mb-6">
@@ -141,7 +144,7 @@ const Register: React.FC = () => {
                     onChange={handleInputChange} 
                 />
 
-                {accountType === 'student' && (
+                {accountType === 'student' && !cloudAuthEnabled && (
                     <FileUpload 
                         file={file}
                         onFileChange={handleFileChange}
@@ -159,7 +162,7 @@ const Register: React.FC = () => {
                     className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded cursor-pointer"
                     />
                     <label htmlFor="terms" className="ml-2 block text-sm text-gray-900 cursor-pointer">
-                    Je comprends que ce compte est une démonstration locale non sécurisée.
+                    {cloudAuthEnabled ? 'Je comprends que les autres fonctionnalités restent en démonstration locale.' : 'Je comprends que ce compte est une démonstration locale non sécurisée.'}
                     </label>
                 </div>
 
@@ -168,10 +171,10 @@ const Register: React.FC = () => {
                 {/* Submit Button */}
                 <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || confirmation}
                     className={`group w-full flex justify-center items-center py-3.5 px-4 border border-transparent text-sm font-bold rounded-xl text-slate-900 bg-primary hover:bg-yellow-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary shadow-lg shadow-primary/20 transition-all duration-300 transform hover:-translate-y-0.5 ${isSubmitting ? 'opacity-80 cursor-not-allowed' : ''}`}
                 >
-                    {isSubmitting ? (
+                    {confirmation ? 'Demande envoyée' : isSubmitting ? (
                     <>
                         <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5 text-slate-900" />
                         Traitement en cours...

@@ -36,7 +36,7 @@ const ProcessSteps: React.FC = () => {
                     <StepCard 
                         number="2" 
                         title="Gagnez en visibilité" 
-                        desc="Votre projet est consultable dans l’espace projets par les autres membres."
+                        desc="Votre projet peut être consulté par tous, même sans compte."
                         icon={Target}
                     />
                     <StepCard 

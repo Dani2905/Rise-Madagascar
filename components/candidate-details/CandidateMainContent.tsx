@@ -51,9 +51,10 @@ const CandidateMainContent: React.FC<CandidateMainContentProps> = ({ candidate, 
         <section className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm overflow-hidden relative">
             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
             <h3 className="text-xl font-heading font-bold text-slate-900 mb-6 flex items-center gap-3 relative z-10">
-                <div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><Star size={20} /></div> Avis & Réputation
+                <div className="p-2 bg-yellow-50 rounded-lg text-yellow-600"><Star size={20} /></div> Avis antérieurs
             </h3>
 
+            <p className="mb-4 text-xs text-slate-500">Avis précédemment enregistrés, distincts des notes locales par étoiles.</p>
             {reviews.length > 0 ? (
                 <div className="grid gap-6 relative z-10">
                     {reviews.map((review: any, idx: number) => (

@@ -3,6 +3,8 @@ import { MapPin, GraduationCap, Mail, Phone, Edit3, Camera, Loader2, Star } from
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import EditProfileModal from './EditProfileModal';
+import { useStudentRating } from '../../hooks/useStudentRating';
+import { formatStudentAverage } from '../../utils/studentRatings';
 
 interface ProfileHeaderProps {
   profile: any;
@@ -29,8 +31,9 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isEditModalOpen,
   const initials = `${profile.firstName?.[0] || ''}${profile.lastName?.[0] || ''}`.toUpperCase() || '?';
   
   // Rating logic
-  const rating = profile.rating || 0;
-  const reviewCount = profile.reviewCount || 0;
+  const studentRating = useStudentRating(profile.role === 'student' ? profile.id : undefined);
+  const rating = studentRating.average;
+  const reviewCount = studentRating.count;
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, field: 'avatarUrl' | 'coverUrl') => {
     const file = event.target.files?.[0];
@@ -116,10 +119,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isEditModalOpen,
                             </h1>
                             
                             {/* Rating Badge */}
-                            {profile.role === 'student' && rating > 0 && (
-                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-yellow-50 rounded-full border border-yellow-100 cursor-help" title={`Noté par ${reviewCount} recruteurs/particuliers`}>
+                            {profile.role === 'student' && rating !== null && !studentRating.error && (
+                                <div className="flex items-center gap-1.5 px-2.5 py-1 bg-yellow-50 rounded-full border border-yellow-100 cursor-help" title={`Évaluations locales non vérifiées : ${reviewCount} recruteurs/particuliers`}>
                                     <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                                    <span className="text-xs font-bold text-slate-900">{rating}</span>
+                                    <span className="text-xs font-bold text-slate-900">{formatStudentAverage(rating)}</span>
                                     <span className="text-[10px] text-gray-500 font-medium">({reviewCount} avis)</span>
                                 </div>
                             )}

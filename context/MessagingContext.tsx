@@ -19,6 +19,36 @@ const readPrivacy = (): MailPrivacy[] => {
   return entries;
 };
 const privacyFor = (entries: MailPrivacy[], id: string | number): MailPrivacy => entries.find(e => e.ownerId === String(id)) || { ownerId: String(id), mode: 'everyone', blocked: [] };
+/** Vérifie de nouveau la visibilité étudiante pour la session courante ; aucune autorisation serveur. */
+export function studentSearchAllowed(viewer: any, studentId: string | number): boolean {
+  try {
+    if (!viewer || !['student','company','individual'].includes(viewer.role) || !getCurrentLocalSession(viewer) || String(viewer.id) === String(studentId)) return false;
+    const users=readLocalArray('rise_db_users'), policies=readPrivacy();
+    const source=users.filter(u=>u?.id != null && String(u.id)===String(viewer.id));
+    const target=users.filter(u=>u?.id != null && String(u.id)===String(studentId));
+    if (source.length!==1 || source[0].role!==viewer.role || target.length!==1 || target[0].role!=='student') return false;
+    const mine=privacyFor(policies,viewer.id), theirs=privacyFor(policies,studentId);
+    return (viewer.role==='student' ? theirs.discoverable===true : theirs.discoverableByRecruiters===true) && !mine.blocked.includes(String(studentId)) && !theirs.blocked.includes(String(viewer.id));
+  } catch { return false; }
+}
+/** Les étoiles ne créent pas de droit de contact ; les blocages restent applicables. */
+export function recruiterCanRateStudent(viewer: any, studentId: string | number): boolean {
+  try {
+    if (!viewer || !['company','individual'].includes(viewer.role) || !getCurrentLocalSession(viewer) || viewer.id == null || String(viewer.id) === String(studentId)) return false;
+    const users=readLocalArray('rise_db_users'), policies=readPrivacy();
+    const source=users.filter(u=>u?.id != null && String(u.id)===String(viewer.id));
+    const target=users.filter(u=>u?.id != null && String(u.id)===String(studentId));
+    if (source.length!==1 || source[0].role!==viewer.role || target.length!==1 || target[0].role!=='student') return false;
+    const mine=privacyFor(policies,viewer.id), theirs=privacyFor(policies,studentId);
+    return !mine.blocked.includes(String(studentId)) && !theirs.blocked.includes(String(viewer.id));
+  } catch {return false;}
+}
+
+/** Vérification locale des préférences pour une proposition sur un projet. */
+export const projectSupportAllowed = (senderId: string | number, ownerId: string | number): boolean => {
+  const entries=readPrivacy(), sender=privacyFor(entries,senderId), owner=privacyFor(entries,ownerId);
+  return owner.mode !== 'nobody' && !sender.blocked.includes(String(ownerId)) && !owner.blocked.includes(String(senderId));
+};
 type ReadResult = { ok: true } | { ok: false; error: string };
 interface MessagingContextType {
   messages: Message[];

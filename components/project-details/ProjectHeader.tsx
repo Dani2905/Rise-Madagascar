@@ -12,7 +12,7 @@ interface ProjectHeaderProps {
 const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
   const location = useLocation();
   const student = project.ownerId != null ? getPublicStudent(String(project.ownerId)) : null;
-  const { liked: isLiked, count: likes, toggle } = useProjectLikes(project.id, project.likes);
+  const { liked: isLiked, count: likes, toggle, error: likeError } = useProjectLikes(project.id, project.likes);
   const handleShare = async () => {
       try {
           if (!navigator.clipboard?.writeText) throw new Error('clipboard unavailable');
@@ -82,6 +82,7 @@ const ProjectHeader: React.FC<ProjectHeaderProps> = ({ project }) => {
                     </button>
                 </div>
             </div>
+            {likeError && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{likeError}</p>}
         </div>
     </div>
   );

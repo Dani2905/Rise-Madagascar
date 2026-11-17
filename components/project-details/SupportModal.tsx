@@ -43,7 +43,7 @@ const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose, projectTit
     setError('');
     if (onConfirm({ type: supportType, message: message.trim(), amount })) {
       setMessage(''); setAmount(''); setSupportType('mentoring'); onClose();
-    } else setError('Impossible d’enregistrer la proposition dans ce navigateur.');
+    } else setError('Impossible d’enregistrer la proposition : vérifiez la session, les données locales et les réglages de contact du porteur.');
   };
 
   return (

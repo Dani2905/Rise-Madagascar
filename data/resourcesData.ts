@@ -41,6 +41,33 @@ export interface Guide {
 
 export const FEATURED_PROJECTS: Project[] = [
   {
+    id: 'exemple-projet',
+    title: 'Mada Potager',
+    student: 'Miora R. (personnage fictif)',
+    school: 'Université fictive',
+    category: 'Agritech',
+    need: 'Financement',
+    description: 'Mada Potager est un projet étudiant fictif qui imagine des kits de culture accessibles pour les familles et les écoles. Cet exemple montre comment présenter un projet sur Rise.',
+    stage: 'Prototype',
+    progress: 40,
+    likes: 0,
+    tags: ['Agriculture', 'Éducation', 'Environnement'],
+    imageColor: 'bg-green-100 text-green-700',
+    problem: 'De nombreuses familles et écoles souhaitent cultiver une partie de leur alimentation mais ne disposent pas toujours du matériel, de l’espace ou des connaissances nécessaires pour commencer.',
+    solution: 'Créer un kit composé de semences, de contenants réutilisables et d’un guide simple en malagasy et en français. Budget fictif : 800 000 Ar pour le matériel, 600 000 Ar pour les semences, 400 000 Ar pour les ateliers et 200 000 Ar pour le transport. Total : 2 000 000 Ar.',
+    team: [
+      { name: 'Miora R. (fictif)', role: 'Porteuse du projet et coordination' },
+      { name: 'Tiana M. (fictif)', role: 'Conception des kits' },
+      { name: 'Hery A. (fictif)', role: 'Animation des ateliers' }
+    ],
+    roadmap: [
+      { date: 'Étape 1', title: 'Recueillir les besoins des familles et des écoles', done: true },
+      { date: 'Étape 2', title: 'Fabriquer et tester les premiers kits', done: true },
+      { date: 'Étape 3', title: 'Organiser des ateliers pilotes', done: false },
+      { date: 'Étape 4', title: 'Améliorer les kits et préparer leur diffusion', done: false }
+    ]
+  },
+  {
     id: 1,
     title: "Agri-Connect Mada",
     student: "Riana A.",
@@ -185,7 +212,7 @@ export const GUIDES: Guide[] = [
 export const FAQ_ITEMS = [
     {
         question: "Faut-il un abonnement pour publier un projet ?",
-        answer: `Les étudiants peuvent consulter les projets avec un compte gratuit. Un abonnement étudiant actif est nécessaire pour publier un projet ou postuler à une offre ; son activation est simulée dans cette démonstration.`
+        answer: `Les projets peuvent être consultés sans compte. Un compte gratuit est nécessaire pour réagir ou contacter le porteur. Un abonnement étudiant actif est nécessaire pour publier un projet ou postuler à une offre ; son activation est simulée dans cette démonstration.`
     },
     {
         question: "Qui peut voir mon projet ?",

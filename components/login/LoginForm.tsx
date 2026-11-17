@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Loader2, ArrowRight } from 'lucide-react';
+import { cloudAuthEnabled } from '../../utils/supabase';
 import { FloatingInput } from '../FloatingInput';
 
 interface LoginFormProps {
@@ -35,12 +36,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ formData, handleInputChange, hand
                     onChange={handleInputChange}
                     required
                 />
-                <p className="text-xs text-slate-500">La récupération de mot de passe n’est pas disponible dans cette version locale.</p>
+                <p className="text-xs text-slate-500">{cloudAuthEnabled ? 'La récupération du mot de passe sera ajoutée prochainement.' : 'La récupération de mot de passe n’est pas disponible dans cette version locale.'}</p>
             </div>
         </div>
 
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-3">{error}</p>}
-        <p className="text-xs text-slate-500">La session reste ouverte dans ce navigateur jusqu’à votre déconnexion.</p>
+        <p className="text-xs text-slate-500">{cloudAuthEnabled ? 'La session est conservée sur cet appareil et renouvelée par Supabase.' : 'La session reste ouverte dans ce navigateur jusqu’à votre déconnexion.'}</p>
 
         <button
             type="submit"

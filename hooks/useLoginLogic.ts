@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth, User } from '../context/AuthContext';
+import { cloudAuthEnabled } from '../utils/supabase';
 import { MOCK_STUDENT_PROFILE } from '../data/studentData';
 import { createPasswordCredential, DEMO_EMAIL_ROLES, DEMO_PASSWORD, isValidSessionUser, normalizeEmail, publicSessionUser, readLocalUsers, returnPathForRole, verifyLocalPassword } from '../utils/localAuth';
 
@@ -13,7 +14,7 @@ const DEMO_IDENTITIES = {
 export const useLoginLogic = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, signInCloud } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -36,6 +37,13 @@ export const useLoginLogic = () => {
       const email = normalizeEmail(formData.email);
       const password = formData.password;
       if (!email || !password || password.length > 1024) throw new Error('Adresse e-mail ou mot de passe incorrect.');
+      if (cloudAuthEnabled) {
+        if (!signInCloud) throw new Error('La connexion Supabase est indisponible.');
+        const account = await signInCloud(email, password);
+        setFormData({email:'', password:''});
+        navigate(returnPathForRole(location.state?.returnTo, account.role), { replace: true, state: location.state?.returnState });
+        return;
+      }
       let users = readLocalUsers();
       const matching = users.filter(u => typeof u?.email === 'string' && normalizeEmail(u.email) === email);
       if (matching.length > 1) throw new Error('Plusieurs comptes locaux utilisent cette adresse. Connexion interrompue pour éviter de choisir le mauvais compte.');

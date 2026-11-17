@@ -107,6 +107,7 @@ const Footer: React.FC = () => {
           <p>&copy; {new Date().getFullYear()} Rise Madagascar. Fièrement développé à Tana 🇲🇬.</p>
           <div className="flex flex-wrap justify-center gap-8">
               <Link to="/about" className="hover:text-primary transition-colors">À Propos</Link>
+              <Link to="/admin" className="hover:text-primary transition-colors">Espace administration</Link>
               <Link to="#" className="hover:text-primary transition-colors">Mentions Légales</Link>
               <Link to="#" className="hover:text-primary transition-colors">Confidentialité</Link>
               <Link to="#" className="hover:text-primary transition-colors">CGU</Link>

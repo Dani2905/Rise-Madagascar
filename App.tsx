@@ -1,7 +1,8 @@
 
 import React, { useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { cloudAuthEnabled } from './utils/supabase';
 import { MessagingProvider } from './context/MessagingContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import Navbar from './components/Navbar';
@@ -23,6 +24,7 @@ import PublicStudentProfile from './pages/PublicStudentProfile';
 import CandidateDetails from './pages/CandidateDetails';
 import Messages from './pages/Messages';
 import Pricing from './pages/Pricing';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -33,10 +35,17 @@ const ScrollToTop = () => {
   return null;
 };
 
+const DevelopmentNotice = () => {
+  const { isLoggedIn } = useAuth();
+  if (!cloudAuthEnabled || !isLoggedIn) return null;
+  return <div role="note" className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs text-amber-900">Compte connecté avec Supabase. Les modifications de profil, offres, projets, messages, notes et abonnements restent pour l’instant des simulations locales non synchronisées.</div>;
+};
+
 // Layout principal avec Navbar et Footer
 const MainLayout = ({ children }: { children?: React.ReactNode }) => (
   <>
     <Navbar />
+    <DevelopmentNotice />
     <main className="flex-grow">
       {children}
     </main>
@@ -68,6 +77,7 @@ const App: React.FC = () => {
               <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
               <Route path="/login" element={<MainLayout><Login /></MainLayout>} />
               <Route path="/resources" element={<MainLayout><Resources /></MainLayout>} />
+              <Route path="/admin" element={<MainLayout><AdminDashboard /></MainLayout>} />
               <Route path="/about" element={<MainLayout><About /></MainLayout>} />
               <Route path="/pricing" element={<MainLayout><Pricing /></MainLayout>} />
               

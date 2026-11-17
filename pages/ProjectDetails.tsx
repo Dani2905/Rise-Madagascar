@@ -2,16 +2,19 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import { getPublicProjects } from '../utils/projects';
+import { useAuth } from '../context/AuthContext';
 import ProjectHeader from '../components/project-details/ProjectHeader';
 import ProjectContent from '../components/project-details/ProjectContent';
 import ProjectSidebar from '../components/project-details/ProjectSidebar';
 
 const ProjectDetails: React.FC = () => {
   const { id } = useParams();
+  const { user, isLoading: authLoading } = useAuth();
   const location = useLocation();
   const fromStudent = typeof location.state?.fromStudent === 'string' && /^\/students\/[^/?#]+$/.test(location.state.fromStudent) ? location.state.fromStudent : null;
-  const returnPath = fromStudent || (typeof location.state?.fromResources === 'string' && /^\/resources(?:\?|$)/.test(location.state.fromResources) ? location.state.fromResources : '/resources');
-  const returnLabel = fromStudent ? 'Retour au profil étudiant' : 'Retour aux projets';
+  const fromGlobalSearch = typeof location.state?.fromGlobalSearch === 'string' && /^\/discover(?:\?|$)/.test(location.state.fromGlobalSearch) ? location.state.fromGlobalSearch : null;
+  const returnPath = fromStudent || fromGlobalSearch || (typeof location.state?.fromResources === 'string' && /^\/resources(?:\?|$)/.test(location.state.fromResources) ? location.state.fromResources : '/resources');
+  const returnLabel = fromStudent ? 'Retour au profil étudiant' : fromGlobalSearch ? 'Retour à la recherche' : 'Retour aux projets';
   const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -52,6 +55,7 @@ const ProjectDetails: React.FC = () => {
             </Link>
         </div>
 
+        {!authLoading && !user && <p className="mb-4 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">Consultation ouverte sans compte. Pour réagir, contacter le porteur ou envoyer une proposition de soutien, un compte gratuit est nécessaire. Les projets et échanges locaux restent dans ce navigateur.</p>}
         {project.isDemo && <p className="mb-4 rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900">Projet fictif présenté à titre d’exemple. Il ne correspond pas à une demande de soutien réelle.</p>}
         <ProjectHeader project={project} />
 

@@ -51,7 +51,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile, onEdit }) =>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-50 rounded-full blur-3xl -mr-10 -mt-10"></div>
                 <div className="flex items-center justify-between mb-6 relative z-10">
                     <h3 className="font-heading font-bold text-lg text-slate-900 flex items-center gap-2">
-                        <Star className="text-yellow-500 fill-yellow-500" size={20} /> Réputation & Avis
+                        <Star className="text-yellow-500 fill-yellow-500" size={20} /> Avis antérieurs
                     </h3>
                     <div className="flex items-center gap-2 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-100">
                         <span className="text-xl font-bold text-slate-900">{rating}</span>
@@ -63,6 +63,7 @@ const ProfileOverview: React.FC<ProfileOverviewProps> = ({ profile, onEdit }) =>
                     </div>
                 </div>
 
+                <p className="mb-4 text-xs text-slate-500">Avis précédemment enregistrés, distincts des notes locales affichées sur le profil public.</p>
                 <div className="grid md:grid-cols-2 gap-4 relative z-10">
                     {reviews.map((review: any, idx: number) => (
                         <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-100">

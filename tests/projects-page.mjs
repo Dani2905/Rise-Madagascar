@@ -1,0 +1,20 @@
+import { JSDOM } from 'jsdom';
+import assert from 'node:assert/strict';
+import React from 'react';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { AuthProvider } from '../context/AuthContext';
+import { MessagingProvider } from '../context/MessagingContext';
+import { SubscriptionProvider } from '../context/SubscriptionContext';
+import Resources from '../pages/Resources';
+import Profile from '../pages/Profile';
+const dom=new JSDOM('<html><body></body></html>',{url:'http://localhost/'});
+Object.assign(globalThis,{window:dom.window,document:dom.window.document,navigator:dom.window.navigator,localStorage:dom.window.localStorage,HTMLElement:dom.window.HTMLElement,FormData:dom.window.FormData,StorageEvent:dom.window.StorageEvent,IS_REACT_ACT_ENVIRONMENT:true});window.scrollTo=()=>{};window.confirm=()=>true;
+const student={id:51,firstName:'Aina',lastName:'R',email:'a@test.mg',role:'student',hasSubscription:false}, company={id:77,firstName:'Soa',lastName:'R',companyName:'Société',email:'c@test.mg',role:'company',hasSubscription:false};
+const project={id:700,ownerId:51,title:'Mada Learning',student:'Aina R',category:'Éducation',need:'Mentorat',description:'Un projet pour apprendre',progress:20,stage:'Prototype',likes:0,tags:['cours']};
+const seed=()=>{localStorage.clear();localStorage.setItem('rise_db_users',JSON.stringify([student,company]));localStorage.setItem('rise_custom_projects',JSON.stringify([project]));};const session=u=>{localStorage.setItem('rise_user_data',JSON.stringify(u));localStorage.setItem('rise_session_token','test')};
+let render;const Marker=()=>{const l=useLocation();return React.createElement('p',{'data-testid':'register'},JSON.stringify({path:l.pathname,search:l.search,state:l.state}))};const mount=()=>render(React.createElement(MemoryRouter,{initialEntries:['/resources']},React.createElement(AuthProvider,null,React.createElement(SubscriptionProvider,null,React.createElement(MessagingProvider,null,React.createElement(Routes,null,React.createElement(Route,{path:'/resources',element:React.createElement(Resources)}),React.createElement(Route,{path:'/profile',element:React.createElement(Profile)}),React.createElement(Route,{path:'/register',element:React.createElement(Marker)})))))));
+async function main(){const {screen,fireEvent,cleanup}=await import('@testing-library/react');render=(await import('@testing-library/react')).render;seed();mount();await screen.findByRole('heading',{name:'Projets étudiants'});assert.ok(screen.getByLabelText('Rechercher un projet'));assert.ok(screen.getByRole('heading',{name:'Mada Learning'}));assert.ok(screen.getAllByText('Mentorat')[0]);assert.ok(screen.getAllByText('Exemple fictif')[0]);assert.ok(screen.getByText(/consult.*sans compte/i));fireEvent.click(screen.getByRole('button',{name:'Publier un projet'}));let marker=JSON.parse(screen.getByTestId('register').textContent);assert.equal(marker.search,'?type=student');assert.equal(marker.state.returnTo,'/profile?tab=projects&action=new');cleanup();
+seed();session(student);mount();await screen.findByRole('button',{name:'Publier un projet'});fireEvent.click(screen.getByRole('button',{name:'Publier un projet'}));await screen.findByRole('dialog');assert.equal(JSON.parse(localStorage.getItem('rise_custom_projects')).length,1);cleanup();
+seed();session(company);mount();await screen.findByRole('heading',{name:'Projets étudiants'});assert.equal(screen.queryByRole('button',{name:'Publier un projet'}),null);assert.ok(screen.getByRole('heading',{name:'Mada Learning'}));cleanup();
+console.log('OK page projets : accès direct, recherche, publication étudiante et abonnement');}
+main().catch(e=>{console.error(e);process.exit(1)});

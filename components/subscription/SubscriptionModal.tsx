@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, GraduationCap, Building2, UserRound, ArrowLeft } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { SUBSCRIPTION_PLANS, SubscriptionRole, createDemoSubscription, formatAriary, formatSubscriptionDate, isSubscriptionActive } from '../../utils/subscription';
+import { useSubscriptionClock } from '../../hooks/useSubscriptionClock';
+import { SUBSCRIPTION_PLANS, SubscriptionRole, createDemoSubscription, formatAriary, formatSubscriptionDate, formatSubscriptionRemaining, isSubscriptionActive } from '../../utils/subscription';
 
 const roles: SubscriptionRole[] = ['student', 'company', 'individual'];
 const icons = { student: GraduationCap, company: Building2, individual: UserRound };
@@ -15,7 +16,10 @@ const SubscriptionModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [selectedRole, setSelectedRole] = useState<SubscriptionRole | null>(user?.role || null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const active = isSubscriptionActive(user);
+  const startsAt = Date.parse(user?.subscription?.startsAt || '');
+  const nextBoundary = Number.isFinite(startsAt) && startsAt > Date.now() ? startsAt : user?.subscription?.expiresAt;
+  const now = useSubscriptionClock(nextBoundary);
+  const active = isSubscriptionActive(user, now);
   // Si un compte est connecté, il ne peut pas activer le tarif d'un autre profil.
   const role = user?.role || selectedRole;
   const plan = role ? SUBSCRIPTION_PLANS[role] : null;
@@ -72,7 +76,7 @@ const SubscriptionModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <p className="text-sm font-bold text-slate-600">Abonnement {plan.label.toLowerCase()}</p>
               <p className="mt-2"><span className="text-3xl font-black text-slate-900">{formatAriary(plan.amount)}</span><span className="text-slate-500"> / mois</span></p>
               <p className="text-sm text-slate-600 mt-3">Pour {plan.action}.</p>
-              {active && user?.subscription && <p className="mt-3 text-sm text-green-700 font-bold">Démonstration active jusqu’au {formatSubscriptionDate(user.subscription.expiresAt)} (heure de Madagascar).</p>}
+              {active && user?.subscription && <p className="mt-3 text-sm text-green-700 font-bold">Démonstration active jusqu’au {formatSubscriptionDate(user.subscription.expiresAt)} (heure de Madagascar). Temps restant : {formatSubscriptionRemaining(user.subscription.expiresAt, now)}.</p>}
             </div>
             <p className="mt-4 text-xs text-slate-600 bg-amber-50 border border-amber-200 rounded-xl p-3 leading-relaxed"><strong>Démonstration :</strong> aucun paiement réel n’est encaissé. L’activation simule un mois d’accès dans ce navigateur, sans renouvellement automatique.</p>
             <div className="mt-5 space-y-3">

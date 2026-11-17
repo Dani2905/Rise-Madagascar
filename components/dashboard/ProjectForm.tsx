@@ -122,6 +122,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ initialData, onSave, onCancel
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-8 space-y-10">
+            <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">Les visiteurs, même sans compte, peuvent consulter les informations de votre projet. Ne publiez pas de coordonnées privées, de données sensibles ou de détails que vous souhaitez garder confidentiels. Dans cette démonstration, les données restent dans ce navigateur.</p>
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-sm text-blue-800 flex items-start gap-3">

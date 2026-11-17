@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth, User } from '../context/AuthContext';
 import { createPasswordCredential, DEMO_EMAIL_ROLES, normalizeEmail, publicSessionUser, readLocalUsers, returnPathForRole } from '../utils/localAuth';
+import { cloudAuthEnabled, getSupabase, authError } from '../utils/supabase';
 import { RegistrationFormData, RegistrationRole, validateRegistration, buildRegistrationProfile } from '../utils/registration';
 
 declare global {
@@ -56,6 +57,7 @@ export const useRegisterForm = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [confirmation, setConfirmation] = useState(false);
   const submitting = useRef(false);
 
   // Conserver les champs communs et le brouillon ; seul le profil choisi sera enregistré.
@@ -104,6 +106,18 @@ export const useRegisterForm = () => {
     submitting.current = true; setIsSubmitting(true);
     let accountCreated = false;
     try {
+      if (cloudAuthEnabled) {
+        // Aucun mot de passe ou document n'est inclus dans les métadonnées du profil.
+        const registration = buildRegistrationProfile(formData, accountType);
+        const {error} = await getSupabase().auth.signUp({
+          email, password:formData.password,
+          options:{ data:{role:accountType, registration}, emailRedirectTo: `${window.location.origin}${window.location.pathname}` }
+        });
+        if (error) throw new Error(authError(error));
+        setFormData(prev => ({...prev, password:'', confirmPassword:''}));
+        setConfirmation(true);
+        return;
+      }
       let users = readLocalUsers();
       if (users.some(u => typeof u?.email === 'string' && normalizeEmail(u.email) === email)) throw new Error('Un compte local utilise déjà cette adresse. Connectez-vous plutôt.');
       const credential = await createPasswordCredential(formData.password);
@@ -126,6 +140,7 @@ export const useRegisterForm = () => {
 
   return {
     accountType,
+    confirmation,
     handleAccountTypeChange,
     formData,
     file,

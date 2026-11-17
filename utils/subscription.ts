@@ -40,6 +40,29 @@ export function isSubscriptionActive(user: { role?: string; hasSubscription?: bo
   return Number.isFinite(start) && Number.isFinite(end) && start <= now && now < end && end > start;
 }
 
+export type SubscriptionStatus = 'inactive' | 'invalid' | 'scheduled' | 'active' | 'expired';
+/** État calculé sans modifier le stockage, en cohérence avec les contrôles d'accès. */
+export function getSubscriptionStatus(user: {role?: string; hasSubscription?: boolean; subscription?: Subscription | null} | null | undefined, now = Date.now()): SubscriptionStatus {
+  if (!user?.hasSubscription) return 'inactive';
+  const sub = user.subscription;
+  if (!sub || sub.mode !== 'demo' || sub.role !== user.role || typeof sub.startsAt !== 'string' || typeof sub.expiresAt !== 'string') return 'invalid';
+  const start = Date.parse(sub.startsAt), end = Date.parse(sub.expiresAt);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 'invalid';
+  if (now < start) return 'scheduled';
+  return now < end ? 'active' : 'expired';
+}
+/** Durée restante arrondie vers le bas ; le dernier instant n'est jamais affiché comme expiré. */
+export function formatSubscriptionRemaining(expiresAt: string, now = Date.now()): string {
+  const remaining = Date.parse(expiresAt) - now;
+  if (!Number.isFinite(remaining) || remaining <= 0) return '0 minute';
+  const minutes = Math.floor(remaining / 60000);
+  if (!minutes) return 'moins d’une minute';
+  const days = Math.floor(minutes / 1440), hours = Math.floor((minutes % 1440) / 60), mins = minutes % 60;
+  if (days) return `${days} j${hours ? ` ${hours} h` : ''}`;
+  if (hours) return `${hours} h${mins ? ` ${mins} min` : ''}`;
+  return `${mins} min`;
+}
+
 export type RestrictedAction = 'apply' | 'publishProject' | 'publishOffer';
 
 /** La consultation est libre ; seules les actions de publication et candidature sont contrôlées. */

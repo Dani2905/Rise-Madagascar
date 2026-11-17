@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Star, Mail, Phone, Lock, XCircle, Clock, CheckCircle, MessageSquare } from 'lucide-react';
+import { Mail, Phone, Lock, XCircle, Clock, CheckCircle, MessageSquare } from 'lucide-react';
 
 interface CandidateSidebarProps {
   candidate: any;
@@ -17,8 +17,6 @@ const CandidateSidebar: React.FC<CandidateSidebarProps> = ({
   handleContact, 
   handleStatusChange 
 }) => {
-  const rating = candidate.rating || 0;
-  const reviewCount = candidate.reviewCount || 0;
 
   return (
     <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
@@ -29,19 +27,6 @@ const CandidateSidebar: React.FC<CandidateSidebarProps> = ({
             <h1 className="text-2xl font-heading font-bold text-slate-900 mb-2">{candidate.name}</h1>
             <p className="text-primary font-bold text-sm mb-3 bg-yellow-50 inline-block px-3 py-1 rounded-full border border-yellow-100">{candidate.role}</p>
             
-            {/* Rating Badge */}
-            {rating > 0 && (
-                <div className="flex justify-center items-center gap-1.5 mb-6">
-                    <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                            <Star key={star} size={16} className={`${star <= Math.round(rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-                        ))}
-                    </div>
-                    <span className="font-bold text-slate-900">{rating}</span>
-                    <span className="text-xs text-gray-500">({reviewCount} avis)</span>
-                </div>
-            )}
-
             {/* Contact Actions */}
             {isLoggedIn ? (
                 <div className="grid grid-cols-2 gap-3 mb-2">
