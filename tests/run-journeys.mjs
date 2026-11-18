@@ -6,7 +6,7 @@ import { dirname, resolve } from 'node:path';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = resolve(root, `.journey-tests-${process.pid}.cjs`);
 try {
-  for (const name of ['journeys.mjs', 'tracking.mjs', 'mail.mjs', 'privacy.mjs', 'contacts.mjs', 'student-search.mjs', 'global-search.mjs', 'global-filters.mjs', 'recruiter-mail.mjs', 'following.mjs', 'recruiter-search.mjs', 'guest-projects.mjs', 'project-search.mjs', 'projects-page.mjs', 'example-project.mjs', 'admin.mjs', 'admin-periods.mjs', 'admin-search.mjs', 'subscription-expiry.mjs', 'student-ratings.mjs', 'supabase-auth.mjs', 'supabase-admin-menu.mjs', 'supabase-profiles-ui.mjs', 'supabase-crm.mjs']) {
+  for (const name of ['journeys.mjs', 'tracking.mjs', 'mail.mjs', 'privacy.mjs', 'contacts.mjs', 'student-search.mjs', 'global-search.mjs', 'global-filters.mjs', 'recruiter-mail.mjs', 'following.mjs', 'recruiter-search.mjs', 'guest-projects.mjs', 'project-search.mjs', 'projects-page.mjs', 'example-project.mjs', 'admin.mjs', 'admin-periods.mjs', 'admin-search.mjs', 'subscription-expiry.mjs', 'student-ratings.mjs', 'supabase-auth.mjs', 'supabase-admin-menu.mjs', 'supabase-admin-settings.mjs', 'supabase-profiles-ui.mjs', 'supabase-crm.mjs']) {
     await build({ entryPoints: [resolve(root, 'tests', name)], outfile: output, bundle: true, platform: 'node', format: 'cjs', packages: 'external', logLevel: 'warning', define: { 'import.meta.env': name.startsWith('supabase-') ? JSON.stringify({VITE_AUTH_MODE:'supabase',VITE_SUPABASE_URL:'https://test.supabase.co',VITE_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_test'}) : '{}' } });
     const result = spawnSync(process.execPath, [output], { cwd: root, stdio: 'inherit' });
     if (result.error) throw result.error;
