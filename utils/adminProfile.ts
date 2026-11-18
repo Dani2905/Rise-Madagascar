@@ -38,6 +38,20 @@ export async function setAdminAvatar(userId:string,value:string|null):Promise<vo
   if (error) throw error;
 }
 
+/** Le prénom est privé et lié à l'identité active du CRM. */
+export async function getAdminFirstName(userId:string):Promise<string> {
+  const {data,error}=await getSupabase().rpc('crm_get_own_first_name',{p_expected_uid:userId});
+  if(error) throw error;
+  if(typeof data!=='string' || data.length>160) throw new Error('Prénom indisponible.');
+  return data;
+}
+export async function setAdminFirstName(userId:string,value:string):Promise<string> {
+  const {data,error}=await getSupabase().rpc('crm_set_own_first_name',{p_expected_uid:userId,p_first_name:value});
+  if(error) throw error;
+  if(typeof data!=='string' || !data.trim() || data.length>160) throw new Error('Réponse invalide.');
+  return data;
+}
+
 /** Un client isolé et non persistant ne remplace jamais la session de l'application. */
 let verifierClient:SupabaseClient|null=null;
 let passwordRequestActive=false;
