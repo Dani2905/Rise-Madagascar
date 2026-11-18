@@ -1,6 +1,7 @@
 import PrivacySettings from '../messaging/PrivacySettings';
 import React from 'react';
 import { Bell, Eye, Trash2 } from 'lucide-react';
+import { cloudAuthEnabled } from '../../utils/supabase';
 import { useAuth } from '../../context/AuthContext';
 import SubscriptionCard from '../subscription/SubscriptionCard';
 import PasswordCard from '../account/PasswordCard';
@@ -18,7 +19,7 @@ const ProfileSettings: React.FC = () => {
       </section>
       <section className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
         <h3 className="font-heading font-bold text-lg text-slate-900 mb-4 flex items-center gap-2"><Eye className="text-green-600" size={20} /> Confidentialité</h3>
-        <p className="text-sm text-gray-600">Cette démonstration conserve vos données dans ce navigateur. Votre aperçu public simulé ne fonctionne que dans ce navigateur et masque vos coordonnées et candidatures. La CVthèque et les réglages de visibilité du profil ne sont pas encore disponibles. Ne saisissez pas de données sensibles.</p>
+        <p className="text-sm text-gray-600">{cloudAuthEnabled ? 'Les champs de votre profil sont stockés de façon privée dans Supabase. Votre aperçu public, les photos et les réglages de visibilité restent simulés dans ce navigateur ; ils ne sont pas synchronisés.' : 'Cette démonstration conserve vos données dans ce navigateur. Votre aperçu public simulé ne fonctionne que dans ce navigateur et masque vos coordonnées et candidatures. La CVthèque et les réglages de visibilité du profil ne sont pas encore disponibles. Ne saisissez pas de données sensibles.'}</p>
       </section>
     </div>
     <section className="bg-slate-50 rounded-2xl p-8 border border-slate-200">

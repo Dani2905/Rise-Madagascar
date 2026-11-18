@@ -6,9 +6,9 @@ import {AuthProvider,useAuth} from '../context/AuthContext';
 import Login from '../pages/Login';
 import Register from '../pages/Register';
 const dom=new JSDOM('<html><body></body></html>',{url:'https://localhost/'});Object.assign(globalThis,{window:dom.window,document:dom.window.document,navigator:dom.window.navigator,localStorage:dom.window.localStorage,HTMLElement:dom.window.HTMLElement,FormData:dom.window.FormData,StorageEvent:dom.window.StorageEvent,WebSocket:dom.window.WebSocket,IS_REACT_ACT_ENVIRONMENT:true});window.scrollTo=()=>{};
-let api, calls=[],failLogin=false, loggedOut=false;
+let api, calls=[],failLogin=false, failProfile=false, loggedOut=false;
 const uid='c0fd8b4d-3500-4cbe-a03c-15b577de4e31';
-const profile={id:uid,role:'individual',registration_data:{firstName:'Aina',lastName:'R',phone:'0340000000',city:'Tana'}};
+const profile={id:uid,role:'individual',profile_data:{},registration_data:{firstName:'Aina',lastName:'R',phone:'0340000000',city:'Tana'}};
 const authUser={id:uid,email:'aina@test.mg',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2025-01-01T00:00:00Z'};
 const b64=o=>Buffer.from(JSON.stringify(o)).toString('base64url');
 const token=`${b64({alg:'HS256',typ:'JWT'})}.${b64({sub:uid,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})}.signature`;
@@ -17,6 +17,7 @@ globalThis.fetch=async (input, options={})=>{const url=String(input);const body=
   if(url.includes('/auth/v1/signup')) return json({user:{...authUser,email:body.email},session:null});
   if(url.includes('/auth/v1/token?grant_type=password')) {if(failLogin)return json({code:400,error_code:'invalid_credentials',msg:'Invalid login credentials'},400);return json({access_token:token,token_type:'bearer',expires_in:3600,refresh_token:'test-refresh',user:authUser});}
   if(url.includes('/auth/v1/user')) return loggedOut?json({code:401,msg:'expired'},401):json(authUser);
+  if(url.includes('/rest/v1/rpc/save_own_profile')) { if(failProfile)return json({code:'500',message:'mock error'},500); profile.profile_data={...profile.profile_data,...body.changes};return json(profile.profile_data); }
   if(url.includes('/rest/v1/profiles')) return json(profile);
   if(url.includes('/auth/v1/logout')) {loggedOut=true;return json({});}
   throw Error('unexpected fetch '+url);
@@ -30,8 +31,18 @@ localStorage.setItem('rise_session_token','forged');localStorage.setItem('rise_u
 failLogin=true;fireEvent.change(screen.getByLabelText('E-mail'),{target:{value:'aina@test.mg'}});fireEvent.change(screen.getByLabelText('Mot de passe'),{target:{value:'wrongpassword'}});fireEvent.submit(screen.getByLabelText('Mot de passe').closest('form'));await screen.findByRole('alert');assert.match(screen.getByRole('alert').textContent,/incorrect/);assert.equal(screen.getByTestId('state').textContent,'visitor');
 failLogin=false;fireEvent.change(screen.getByLabelText('Mot de passe'),{target:{value:'goodpassword'}});fireEvent.submit(screen.getByLabelText('Mot de passe').closest('form'));await screen.findByText('Profil ouvert');await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'aina@test.mg:individual'));assert.equal(JSON.parse(localStorage.getItem('rise_user_data')).id,uid);assert.equal(localStorage.getItem('rise_user_data').includes('goodpassword'),false);
 act(()=>api.updateUser({firstName:'Local',role:'company',id:'forged'}));assert.equal(api.user.role,'individual');assert.equal(api.user.id,uid);assert.equal(api.user.firstName,'Local');
-cleanup();mount('/profile');await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'aina@test.mg:individual'));assert.equal(api.user.firstName,'Local');await act(async()=>{api.logout();});await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'visitor'));assert.equal(localStorage.getItem('rise_user_data'),null);cleanup();
+// Le serveur accepte seulement les champs autorisés et reste source de vérité après reconnexion.
+await act(async()=>{await api.saveProfile({firstName:'Serveur',phone:'0320000000',email:'vol@example.mg',id:'forged',role:'company',hasSubscription:true,avatarUrl:'data:image/png;base64,local'});});
+const saved=calls.find(c=>c.url.includes('/rpc/save_own_profile'));assert.deepEqual(saved.body.changes,{firstName:'Serveur',phone:'0320000000'});assert.equal(api.user.firstName,'Serveur');assert.equal(api.user.role,'individual');
+failProfile=true;await act(async()=>{await assert.rejects(api.saveProfile({firstName:'Ne pas conserver'}),/Enregistrement impossible/)});assert.equal(api.user.firstName,'Serveur');assert.equal(profile.profile_data.firstName,'Serveur');failProfile=false;
+act(()=>api.updateUser({firstName:'Copie locale dépassée',avatarUrl:'local-only'}));
+cleanup();mount('/profile');await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'aina@test.mg:individual'));assert.equal(api.user.firstName,'Serveur');assert.equal(api.user.avatarUrl,'local-only');
+// Simulation d'un nouvel appareil : aucun cache local de profil, même identité distante.
+cleanup();localStorage.removeItem('rise_db_users');localStorage.removeItem('rise_user_data');localStorage.removeItem('rise_session_token');mount('/profile');await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'aina@test.mg:individual'));assert.equal(api.user.firstName,'Serveur');assert.equal(api.user.phone,'0320000000');
+// Les champs propres aux autres rôles ne sont pas envoyés pour un particulier.
+await assert.rejects(api.saveProfile({companyName:'Non autorisé'}),/Aucun champ/);
+await act(async()=>{api.logout();});await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'visitor'));assert.equal(localStorage.getItem('rise_user_data'),null);cleanup();
 // Une inscription n'enregistre aucun mot de passe dans les métadonnées et attend la confirmation.
 loggedOut=false;calls=[];mount('/register?type=individual');await screen.findByRole('heading',{name:/Rejoignez/});await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'visitor'));const change=(label,value)=>fireEvent.change(screen.getByLabelText(label),{target:{value}});
-change(/Prénom/,'Lala');change(/^Nom/,'Raja');change(/Email de contact/,'lala@test.mg');change(/Téléphone/,'0340000000');change(/Ville/,'Antananarivo');change(/Quartier/,'Centre');change(/^Mot de passe/,'secretpass');change(/Confirmer/,'secretpass');fireEvent.click(screen.getByRole('checkbox'));fireEvent.submit(screen.getByRole('checkbox').closest('form'));await screen.findByRole('status');const signup=calls.find(c=>c.url.includes('/auth/v1/signup'));assert.ok(signup);assert.equal(signup.body.data.role,'individual');assert.equal(signup.body.data.registration.firstName,'Lala');assert.equal(JSON.stringify(signup.body.data).includes('secretpass'),false);assert.equal(screen.getByTestId('state').textContent,'visitor');cleanup();console.log('OK authentification Supabase simulée : inscription, confirmation, connexion, restauration, déconnexion, données locales et session forgée');}
+change(/Prénom/,'Lala');change(/^Nom/,'Raja');change(/Email de contact/,'lala@test.mg');change(/Téléphone/,'0340000000');change(/Ville/,'Antananarivo');change(/Quartier/,'Centre');change(/^Mot de passe/,'secretpass');change(/Confirmer/,'secretpass');fireEvent.click(screen.getByRole('checkbox'));fireEvent.submit(screen.getByRole('checkbox').closest('form'));await screen.findByRole('status');const signup=calls.find(c=>c.url.includes('/auth/v1/signup'));assert.ok(signup);assert.equal(signup.body.data.role,'individual');assert.equal(signup.body.data.registration.firstName,'Lala');assert.equal(JSON.stringify(signup.body.data).includes('secretpass'),false);assert.equal(screen.getByTestId('state').textContent,'visitor');cleanup();console.log('OK authentification et profils Supabase simulés : sauvegarde, erreur, nouvel appareil, données locales, restauration et session forgée');}
 main().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});

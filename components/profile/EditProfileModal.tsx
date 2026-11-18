@@ -7,7 +7,7 @@ interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   profile: any;
-  onSave: (data: any) => void;
+  onSave: (data: any) => void | Promise<void>;
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, profile, onSave }) => {
@@ -129,7 +129,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
       setFormData(prev => ({ ...prev, experiences: newExp }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!formData.firstName.trim() || !formData.lastName.trim()) { setError('Veuillez renseigner votre prénom et votre nom.'); return; }
@@ -139,9 +139,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
     }
     setIsSaving(true);
     try {
-      onSave({ ...formData, firstName: formData.firstName.trim(), lastName: formData.lastName.trim() });
+      await onSave({ ...formData, firstName: formData.firstName.trim(), lastName: formData.lastName.trim() });
       onClose();
-    } catch { setError('Impossible d’enregistrer le profil dans ce navigateur.'); }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Impossible d’enregistrer le profil.'); }
     finally { setIsSaving(false); }
   };
 

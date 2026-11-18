@@ -25,6 +25,7 @@ import CandidateDetails from './pages/CandidateDetails';
 import Messages from './pages/Messages';
 import Pricing from './pages/Pricing';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminCRM from './pages/AdminCRM';
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -38,7 +39,7 @@ const ScrollToTop = () => {
 const DevelopmentNotice = () => {
   const { isLoggedIn } = useAuth();
   if (!cloudAuthEnabled || !isLoggedIn) return null;
-  return <div role="note" className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs text-amber-900">Compte connecté avec Supabase. Les modifications de profil, offres, projets, messages, notes et abonnements restent pour l’instant des simulations locales non synchronisées.</div>;
+  return <div role="note" className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs text-amber-900">Compte connecté avec Supabase. Les champs de profil enregistrés sont synchronisés. Photos, offres, projets, messages, notes et abonnements restent des simulations locales non synchronisées.</div>;
 };
 
 // Layout principal avec Navbar et Footer
@@ -77,7 +78,7 @@ const App: React.FC = () => {
               <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
               <Route path="/login" element={<MainLayout><Login /></MainLayout>} />
               <Route path="/resources" element={<MainLayout><Resources /></MainLayout>} />
-              <Route path="/admin" element={<MainLayout><AdminDashboard /></MainLayout>} />
+              <Route path="/admin" element={<MainLayout>{cloudAuthEnabled ? <AdminCRM /> : <AdminDashboard />}</MainLayout>} />
               <Route path="/about" element={<MainLayout><About /></MainLayout>} />
               <Route path="/pricing" element={<MainLayout><Pricing /></MainLayout>} />
               

@@ -1,0 +1,9 @@
+create function public.crm_followup_queue(p_start timestamptz default null,p_end timestamptz default null,p_limit integer default 50,p_offset integer default 0) returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare s timestamptz:=coalesce(p_start,'-infinity'::timestamptz); e timestamptz:=coalesce(p_end,'infinity'::timestamptz);
+begin
+ if not public.crm_has_access() then raise exception 'access denied' using errcode='42501'; end if;
+ if s>=e or p_limit is null or p_limit<1 or p_limit>100 or p_offset is null or p_offset<0 or p_offset>10000 then raise exception 'invalid filters' using errcode='22023'; end if;
+ return coalesce((select jsonb_agg(x.item order by x.follow_up_date asc nulls last,x.updated_at desc) from (select f.follow_up_date,f.updated_at,jsonb_build_object('id',p.id,'role',p.role,'name',case when p.role='company' then coalesce(nullif(p.profile_data->>'companyName',''),nullif(p.registration_data->>'companyName',''),'Entreprise') else coalesce(nullif(trim(concat_ws(' ',coalesce(p.profile_data->>'firstName',p.first_name),coalesce(p.profile_data->>'lastName',p.last_name))),''),'Compte') end,'created_at',p.created_at,'stage',f.stage,'note',f.note,'follow_up_date',f.follow_up_date,'updated_at',f.updated_at) as item from public.crm_account_followups f join public.profiles p on p.id=f.account_id where f.stage<>'closed' and (f.stage='follow_up' or f.follow_up_date is not null) and f.updated_at>=s and f.updated_at<e and public.crm_account_visible(p.id) order by f.follow_up_date asc nulls last,f.updated_at desc,p.id limit p_limit offset p_offset) x),'[]'::jsonb);
+end $$;
+revoke all on function public.crm_followup_queue(timestamptz,timestamptz,integer,integer) from public, anon, authenticated;
+grant execute on function public.crm_followup_queue(timestamptz,timestamptz,integer,integer) to authenticated;

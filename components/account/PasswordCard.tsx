@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { cloudAuthEnabled } from '../../utils/supabase';
 import { FloatingInput } from '../FloatingInput';
 import { createPasswordCredential, normalizeEmail, readLocalUsers, verifyLocalPassword } from '../../utils/localAuth';
 
@@ -38,6 +39,7 @@ const PasswordCard: React.FC = () => {
     } catch (err) { setError(err instanceof Error ? err.message : 'Modification impossible.'); }
     finally { busy.current = false; setSaving(false); }
   };
+  if (cloudAuthEnabled) return <section className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm"><h3 className="font-heading font-bold text-lg text-slate-900 mb-3 flex items-center gap-2"><Lock className="text-primary" size={20} /> Mot de passe Supabase</h3><p className="text-sm text-slate-600">La modification et la récupération du mot de passe Supabase ne sont pas encore disponibles dans cette interface.</p></section>;
   return <section className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm">
     <h3 className="font-heading font-bold text-lg text-slate-900 mb-3 flex items-center gap-2"><Lock className="text-primary" size={20} /> Mot de passe local</h3>
     <p className="text-xs text-slate-500 mb-5">Démonstration uniquement : aucune sécurité serveur ni récupération par e-mail. N’utilisez pas de mot de passe réel ou réutilisé.</p>

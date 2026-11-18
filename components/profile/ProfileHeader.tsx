@@ -3,6 +3,7 @@ import { MapPin, GraduationCap, Mail, Phone, Edit3, Camera, Loader2, Star } from
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import EditProfileModal from './EditProfileModal';
+import { cloudAuthEnabled } from '../../utils/supabase';
 import { useStudentRating } from '../../hooks/useStudentRating';
 import { formatStudentAverage } from '../../utils/studentRatings';
 
@@ -13,7 +14,7 @@ interface ProfileHeaderProps {
 }
 
 const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isEditModalOpen, setIsEditModalOpen }) => {
-  const { updateUser } = useAuth();
+  const { updateUser, saveProfile } = useAuth();
   const navigate = useNavigate();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -66,9 +67,10 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ profile, isEditModalOpen,
       catch { setPhotoError('Impossible de retirer la couverture dans ce navigateur.'); }
   };
 
-  const handleSaveProfile = (updatedData: any) => {
-      updateUser(updatedData);
-      if (window.Toastify) window.Toastify({ text: "Profil enregistré dans ce navigateur.", style: { background: "#059669" } }).showToast();
+  const handleSaveProfile = async (updatedData: any) => {
+      await saveProfile(updatedData);
+      setPhotoMessage(cloudAuthEnabled ? 'Profil enregistré dans Supabase.' : 'Profil enregistré dans ce navigateur.');
+      if (window.Toastify) window.Toastify({ text: cloudAuthEnabled ? 'Profil enregistré dans Supabase.' : 'Profil enregistré dans ce navigateur.', style: { background: "#059669" } }).showToast();
   };
 
   return (

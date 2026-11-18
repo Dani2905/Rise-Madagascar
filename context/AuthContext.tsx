@@ -5,6 +5,7 @@ import { isValidSessionUser, publicSessionUser } from '../utils/localAuth';
 import { prepareDemoStudentSession } from '../utils/demoStudent';
 import { prepareDemoCompanySession } from '../utils/demoCompany';
 import { cloudAuthEnabled, getSupabase, authError } from '../utils/supabase';
+import { cloudProfileFields } from '../utils/cloudProfile';
 
 export interface User {
   firstName: string;
@@ -27,6 +28,7 @@ interface AuthContextType {
   login: (userData: User, token: string) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  saveProfile: (updates: Partial<User>) => Promise<void>;
   signInCloud?: (email: string, password: string) => Promise<User>;
 }
 
@@ -122,7 +124,7 @@ const LocalAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoggedIn, isLoading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isLoggedIn, isLoading, login, logout, updateUser, saveProfile: async (updates) => { updateUser(updates); } }}>
       {children}
     </AuthContext.Provider>
   );
@@ -136,6 +138,7 @@ const CloudAuthProvider: React.FC<{children: React.ReactNode}> = ({children}) =>
   const requestId = React.useRef(0);
   const current = React.useRef<User | null>(null);
   const signingIn = React.useRef(false);
+  const savingProfile = React.useRef(false);
 
   const clear = () => {
     localStorage.removeItem('rise_session_token'); localStorage.removeItem('rise_user_data');
@@ -147,7 +150,7 @@ const CloudAuthProvider: React.FC<{children: React.ReactNode}> = ({children}) =>
     const {data: identity, error: identityError} = await sb.auth.getUser();
     if (serial !== requestId.current) return null;
     if (identityError || !identity.user) { clear(); return null; }
-    const {data: profile, error} = await sb.from('profiles').select('id,role,registration_data').eq('id', identity.user.id).maybeSingle();
+    const {data: profile, error} = await sb.from('profiles').select('id,role,registration_data,profile_data').eq('id', identity.user.id).maybeSingle();
     if (serial !== requestId.current) return null;
     if (error || !profile || !['student','company','individual'].includes(profile.role)) throw new Error('Votre profil sécurisé est indisponible. Réessayez plus tard.');
     let accounts: any[];
@@ -156,10 +159,11 @@ const CloudAuthProvider: React.FC<{children: React.ReactNode}> = ({children}) =>
     const matches = accounts.filter(a => a && String(a.id) === profile.id);
     if (matches.length > 1) throw new Error('Des données locales ambiguës empêchent la connexion.');
     const details = profile.registration_data && typeof profile.registration_data === 'object' && !Array.isArray(profile.registration_data) ? profile.registration_data : {};
-    const account: User = publicSessionUser({ ...details, ...(matches[0] || {}), id: profile.id, role: profile.role, email: identity.user.email || '', authProvider: 'supabase' });
+    const account: User = publicSessionUser({ ...details, ...(matches[0] || {}), ...cloudProfileFields(profile.role, profile.profile_data), id: profile.id, role: profile.role, email: identity.user.email || '', authProvider: 'supabase' });
     const previousUsers = localStorage.getItem('rise_db_users');
     try {
-      if (!matches.length) localStorage.setItem('rise_db_users', JSON.stringify([...accounts, account]));
+      if (!matches.length) accounts.push(account); else accounts[accounts.indexOf(matches[0])] = account;
+      localStorage.setItem('rise_db_users', JSON.stringify(accounts));
       localStorage.setItem('rise_user_data', JSON.stringify(account));
       localStorage.setItem('rise_session_token', 'supabase-local-mirror');
     } catch {
@@ -213,7 +217,35 @@ const CloudAuthProvider: React.FC<{children: React.ReactNode}> = ({children}) =>
     } catch (error) { try { if (raw !== null) localStorage.setItem('rise_db_users', raw); } catch {} throw error; }
     current.current = updated; setUser(updated);
   };
-  return <AuthContext.Provider value={{user,isLoggedIn:!!user,isLoading,login,logout,updateUser,signInCloud}}>{children}</AuthContext.Provider>;
+  const saveProfile = async (updates: Partial<User>) => {
+    const original = current.current;
+    if (!original) throw new Error('Votre session a expiré. Reconnectez-vous.');
+    if (savingProfile.current) throw new Error('Un enregistrement est déjà en cours.');
+    const changes = cloudProfileFields(original.role, updates);
+    if (!Object.keys(changes).length) throw new Error('Aucun champ de profil à enregistrer.');
+    savingProfile.current = true;
+    try {
+      let data: any, error: any;
+      try { ({data,error} = await getSupabase().rpc('save_own_profile', {changes})); }
+      catch { throw new Error('La connexion a été interrompue. Vérifiez votre profil avant de réessayer.'); }
+      if (error || !data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Enregistrement impossible. Vérifiez votre connexion et les données saisies, puis réessayez.');
+      if (!current.current || current.current.id !== original.id) throw new Error('Votre session a changé pendant l’enregistrement. Reconnectez-vous.');
+      // Empêcher une lecture déclenchée avant cet enregistrement de remplacer les données plus récentes.
+      requestId.current++;
+      const merged = publicSessionUser({...current.current, ...cloudProfileFields(original.role,data), id:original.id, role:original.role, email:original.email, authProvider:'supabase'});
+      current.current = merged; setUser(merged);
+      // La base est déjà enregistrée ; une copie locale indisponible ne doit pas annuler ce succès.
+      try {
+        const accounts = JSON.parse(localStorage.getItem('rise_db_users') || '[]');
+        if (Array.isArray(accounts)) {
+          const i = accounts.findIndex((a:any) => a && String(a.id) === String(original.id));
+          if (i >= 0) { accounts[i] = merged; localStorage.setItem('rise_db_users', JSON.stringify(accounts)); }
+        }
+        localStorage.setItem('rise_user_data', JSON.stringify(merged));
+      } catch { /* l'enregistrement serveur reste valide */ }
+    } finally { savingProfile.current = false; }
+  };
+  return <AuthContext.Provider value={{user,isLoggedIn:!!user,isLoading,login,logout,updateUser,saveProfile,signInCloud}}>{children}</AuthContext.Provider>;
 };
 export const AuthProvider: React.FC<{children: React.ReactNode}> = ({children}) => cloudAuthEnabled ? <CloudAuthProvider>{children}</CloudAuthProvider> : <LocalAuthProvider>{children}</LocalAuthProvider>;
 
