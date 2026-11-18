@@ -37,8 +37,8 @@ const ScrollToTop = () => {
 };
 
 const DevelopmentNotice = () => {
-  const { isLoggedIn } = useAuth();
-  if (!cloudAuthEnabled || !isLoggedIn) return null;
+  const { isLoggedIn, user } = useAuth();
+  if (!cloudAuthEnabled || !isLoggedIn || user?.role === 'admin') return null;
   return <div role="note" className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs text-amber-900">Compte connecté avec Supabase. Les champs de profil enregistrés sont synchronisés. Photos, offres, projets, messages, notes et abonnements restent des simulations locales non synchronisées.</div>;
 };
 
@@ -78,7 +78,7 @@ const App: React.FC = () => {
               <Route path="/register" element={<MainLayout><Register /></MainLayout>} />
               <Route path="/login" element={<MainLayout><Login /></MainLayout>} />
               <Route path="/resources" element={<MainLayout><Resources /></MainLayout>} />
-              <Route path="/admin" element={<MainLayout>{cloudAuthEnabled ? <AdminCRM /> : <AdminDashboard />}</MainLayout>} />
+              <Route path="/admin" element={cloudAuthEnabled ? <AdminCRM /> : <MainLayout><AdminDashboard /></MainLayout>} />
               <Route path="/about" element={<MainLayout><About /></MainLayout>} />
               <Route path="/pricing" element={<MainLayout><Pricing /></MainLayout>} />
               

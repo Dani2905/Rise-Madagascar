@@ -65,6 +65,7 @@ export function safeReturnPath(value: unknown): string {
   return value;
 }
 export function returnPathForRole(value: unknown, role: string): string {
+  if (role === 'admin') return '/admin';
   const path = safeReturnPath(value);
   if (path.startsWith('/profile?') && path.includes('tab=projects') && role !== 'student') return '/profile';
   if (path.startsWith('/dashboard?') && path.includes('tab=post-job') && role === 'student') return '/profile';

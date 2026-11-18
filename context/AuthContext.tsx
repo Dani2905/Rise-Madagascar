@@ -10,7 +10,7 @@ import { cloudProfileFields } from '../utils/cloudProfile';
 export interface User {
   firstName: string;
   lastName: string;
-  role: 'student' | 'company' | 'individual';
+  role: 'student' | 'company' | 'individual' | 'admin';
   email?: string;
   avatarUrl?: string;
   companyName?: string;
@@ -152,10 +152,20 @@ const CloudAuthProvider: React.FC<{children: React.ReactNode}> = ({children}) =>
     if (identityError || !identity.user) { clear(); return null; }
     const {data: profile, error} = await sb.from('profiles').select('id,role,registration_data,profile_data').eq('id', identity.user.id).maybeSingle();
     if (serial !== requestId.current) return null;
-    if (error || !profile || !['student','company','individual'].includes(profile.role)) throw new Error('Votre profil sécurisé est indisponible. Réessayez plus tard.');
+    if (error || !profile || !['student','company','individual','admin'].includes(profile.role)) throw new Error('Votre profil sécurisé est indisponible. Réessayez plus tard.');
     let accounts: any[];
     try { accounts = JSON.parse(localStorage.getItem('rise_db_users') || '[]'); if (!Array.isArray(accounts)) throw new Error(); }
     catch { throw new Error('Les données locales sont illisibles. Elles n’ont pas été modifiées.'); }
+    // Un compte interne n'est pas un membre public : ne jamais réutiliser son ancien miroir.
+    if (profile.role === 'admin') {
+      const account: User = {id: profile.id, role:'admin', firstName:'Administration', lastName:'', email:identity.user.email || '', authProvider:'supabase'};
+      try {
+        localStorage.setItem('rise_db_users', JSON.stringify(accounts.filter(a => !(a && String(a.id) === profile.id))));
+        localStorage.setItem('rise_user_data', JSON.stringify(account));
+        localStorage.setItem('rise_session_token', 'supabase-local-mirror');
+      } catch { throw new Error('Impossible de préparer la session locale sur cet appareil.'); }
+      current.current = account; setUser(account); return account;
+    }
     const matches = accounts.filter(a => a && String(a.id) === profile.id);
     if (matches.length > 1) throw new Error('Des données locales ambiguës empêchent la connexion.');
     const details = profile.registration_data && typeof profile.registration_data === 'object' && !Array.isArray(profile.registration_data) ? profile.registration_data : {};

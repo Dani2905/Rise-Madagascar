@@ -61,7 +61,7 @@ const Navbar: React.FC = () => {
           {/* Mobile Menu Button - Visible up to LG */}
           <div className="flex items-center lg:hidden gap-3">
             <NavLink to="/discover" aria-label="Rechercher des offres, des projets et des personnes" title="Rechercher des offres, des projets et des personnes" onClick={closeMobileMenu} className="inline-flex items-center justify-center rounded-full p-2 text-gray-600 hover:bg-gray-100"><Search size={22} /></NavLink>
-            {isLoggedIn && (
+            {isLoggedIn && user?.role !== 'admin' && (
                 <NavLink to="/messages" aria-label={unreadTotal ? `Messagerie, ${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}` : 'Messagerie'} className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
                     <Mail size={22} />
                     {unreadTotal > 0 && (

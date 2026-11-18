@@ -49,12 +49,12 @@ const UserMenu: React.FC<UserMenuProps> = ({
   return (
     <div className="flex items-center gap-3">
         {/* MESSAGING ICON */}
-        <NavLink to="/messages" className="relative p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-slate-900 transition-colors" title="Messagerie" aria-label={unreadTotal ? `Messagerie, ${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}` : 'Messagerie'}>
+        {user.role !== 'admin' && <NavLink to="/messages" className="relative p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-slate-900 transition-colors" title="Messagerie" aria-label={unreadTotal ? `Messagerie, ${unreadTotal} non lu${unreadTotal > 1 ? 's' : ''}` : 'Messagerie'}>
             <Mail size={20} />
             {unreadTotal > 0 && (
                 <span className="absolute top-2 right-2 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white"></span>
             )}
-        </NavLink>
+        </NavLink>}
 
         {/* PROFILE DROPDOWN */}
         <div className="relative" ref={profileRef}>
@@ -72,7 +72,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
                 <div className="hidden lg:block text-left">
                     <p className="text-sm font-bold text-slate-900 leading-none group-hover:text-primary transition-colors max-w-[100px] truncate">{user.firstName}</p>
                     <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5 tracking-wide">
-                        {user.role === 'company' ? 'Recruteur' : user.role === 'individual' ? 'Particulier' : 'Étudiant'}
+                        {user.role === 'admin' ? 'Administrateur' : user.role === 'company' ? 'Recruteur' : user.role === 'individual' ? 'Particulier' : 'Étudiant'}
                     </p>
                 </div>
                 <ChevronDown size={16} className={`text-gray-400 transition-transform duration-200 ${isProfileOpen ? 'rotate-180' : ''}`} />
@@ -89,14 +89,14 @@ const UserMenu: React.FC<UserMenuProps> = ({
                     <div className="px-2">
                         <RoleBasedLinks role={user.role} onLinkClick={closeProfileMenu} />
                         
-                        <NavLink to="/messages" onClick={closeProfileMenu} className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-slate-900 rounded-xl transition-colors">
+                        {user.role !== 'admin' && <><NavLink to="/messages" onClick={closeProfileMenu} className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-slate-900 rounded-xl transition-colors">
                             <Mail size={16} className="mr-3 text-gray-400" /> Messagerie
                             {unreadTotal > 0 && <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{unreadTotal}</span>}
                         </NavLink>
 
                         <NavLink to={getSettingsLink()} onClick={closeProfileMenu} className="flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-slate-900 rounded-xl transition-colors">
                             <Settings size={16} className="mr-3 text-gray-400" /> Paramètres
-                        </NavLink>
+                        </NavLink></>}
                     </div>
                     
                     <div className="border-t border-gray-100 mt-2 pt-2 px-2 pb-1">

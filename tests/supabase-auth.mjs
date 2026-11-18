@@ -24,7 +24,7 @@ globalThis.fetch=async (input, options={})=>{const url=String(input);const body=
 };
 const Capture=()=>{api=useAuth();return React.createElement('span',{'data-testid':'state'},api.isLoading?'loading':api.user?`${api.user.email}:${api.user.role}`:'visitor')};
 const Home=()=>React.createElement('p',null,'Profil ouvert');
-let render;const mount=path=>render(React.createElement(MemoryRouter,{initialEntries:[path]},React.createElement(AuthProvider,null,React.createElement(Capture),React.createElement(Routes,null,React.createElement(Route,{path:'/login',element:React.createElement(Login)}),React.createElement(Route,{path:'/register',element:React.createElement(Register)}),React.createElement(Route,{path:'/profile',element:React.createElement(Home)})))));
+let render;const mount=path=>render(React.createElement(MemoryRouter,{initialEntries:[path]},React.createElement(AuthProvider,null,React.createElement(Capture),React.createElement(Routes,null,React.createElement(Route,{path:'/login',element:React.createElement(Login)}),React.createElement(Route,{path:'/register',element:React.createElement(Register)}),React.createElement(Route,{path:'/profile',element:React.createElement(Home)}),React.createElement(Route,{path:'/admin',element:React.createElement('p',null,'CRM ouvert')})))));
 async function main(){const {screen,fireEvent,cleanup,waitFor,act}=await import('@testing-library/react');render=(await import('@testing-library/react')).render;
 // La fausse session locale ne doit jamais être considérée comme authentification Supabase.
 localStorage.setItem('rise_session_token','forged');localStorage.setItem('rise_user_data',JSON.stringify({id:5,role:'company',firstName:'fake'}));mount('/login');await screen.findByText('visitor');assert.equal(localStorage.getItem('rise_session_token'),null);assert.equal(screen.queryByText('Comptes de démonstration'),null);assert.ok(screen.getByText(/Connexion Supabase/));
@@ -42,6 +42,15 @@ cleanup();localStorage.removeItem('rise_db_users');localStorage.removeItem('rise
 // Les champs propres aux autres rôles ne sont pas envoyés pour un particulier.
 await assert.rejects(api.saveProfile({companyName:'Non autorisé'}),/Aucun champ/);
 await act(async()=>{api.logout();});await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'visitor'));assert.equal(localStorage.getItem('rise_user_data'),null);cleanup();
+// Un compte interne utilise le CRM et supprime son ancien miroir particulier sur cet appareil.
+loggedOut=false;profile.role='admin';profile.registration_data={};profile.profile_data={};
+localStorage.setItem('rise_db_users',JSON.stringify([{id:uid,role:'individual',firstName:'Ancien',phone:'ancien',location:'ancienne adresse'},{id:'autre',role:'student',firstName:'Autre'}]));
+mount('/login');await screen.findByText('visitor');fireEvent.change(screen.getByLabelText('E-mail'),{target:{value:'aina@test.mg'}});fireEvent.change(screen.getByLabelText('Mot de passe'),{target:{value:'goodpassword'}});fireEvent.submit(screen.getByLabelText('Mot de passe').closest('form'));await screen.findByText('CRM ouvert');
+await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'aina@test.mg:admin'));
+assert.equal(api.user.firstName,'Administration');assert.equal(api.user.phone,undefined);assert.equal(api.user.location,undefined);
+assert.deepEqual(JSON.parse(localStorage.getItem('rise_db_users')),[{id:'autre',role:'student',firstName:'Autre'}]);
+await assert.rejects(api.saveProfile({phone:'nouveau'}),/Aucun champ/);
+await act(async()=>{api.logout();});await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'visitor'));cleanup();
 // Une inscription n'enregistre aucun mot de passe dans les métadonnées et attend la confirmation.
 loggedOut=false;calls=[];mount('/register?type=individual');await screen.findByRole('heading',{name:/Rejoignez/});await waitFor(()=>assert.equal(screen.getByTestId('state').textContent,'visitor'));const change=(label,value)=>fireEvent.change(screen.getByLabelText(label),{target:{value}});
 change(/Prénom/,'Lala');change(/^Nom/,'Raja');change(/Email de contact/,'lala@test.mg');change(/Téléphone/,'0340000000');change(/Ville/,'Antananarivo');change(/Quartier/,'Centre');change(/^Mot de passe/,'secretpass');change(/Confirmer/,'secretpass');fireEvent.click(screen.getByRole('checkbox'));fireEvent.submit(screen.getByRole('checkbox').closest('form'));await screen.findByRole('status');const signup=calls.find(c=>c.url.includes('/auth/v1/signup'));assert.ok(signup);assert.equal(signup.body.data.role,'individual');assert.equal(signup.body.data.registration.firstName,'Lala');assert.equal(JSON.stringify(signup.body.data).includes('secretpass'),false);assert.equal(screen.getByTestId('state').textContent,'visitor');cleanup();console.log('OK authentification et profils Supabase simulés : sauvegarde, erreur, nouvel appareil, données locales, restauration et session forgée');}

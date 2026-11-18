@@ -22,6 +22,10 @@ const RoleBasedLinks: React.FC<RoleBasedLinksProps> = ({ role, isMobile = false,
         isMobile ? <span className="flex items-center gap-2"><Icon size={18} /> {children}</span> : <><Icon size={16} className={iconClass} /> {children}</>
     );
 
+    if (role === 'admin') {
+        return <div className={containerClass}><NavLink to="/admin" className={linkStyle} onClick={onLinkClick}><ContentWrapper icon={LayoutDashboard}>Administration CRM</ContentWrapper></NavLink></div>;
+    }
+
     if (role === 'company') {
         return (
             <div className={containerClass}>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import StudentDashboard from '../components/dashboard/StudentDashboard';
 import CompanyDashboard from '../components/dashboard/CompanyDashboard';
 import IndividualDashboard from '../components/dashboard/IndividualDashboard';
@@ -18,6 +18,7 @@ const Profile: React.FC = () => {
   }, [isLoading, isLoggedIn, navigate, location.pathname, location.search, location.state]);
 
   if (isLoading || !user) return null;
+  if (user.role === 'admin') return <Navigate to="/admin" replace />;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">

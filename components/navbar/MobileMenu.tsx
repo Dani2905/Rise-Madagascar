@@ -40,7 +40,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                 <div className="overflow-hidden">
                     <p className="font-bold text-slate-900 text-lg truncate">{user.firstName} {user.lastName}</p>
                     <p className="text-xs text-gray-500 uppercase font-bold tracking-wide">
-                        {user.role === 'company' ? 'Recruteur' : user.role === 'individual' ? 'Particulier' : 'Étudiant'}
+                        {user.role === 'admin' ? 'Administrateur' : user.role === 'company' ? 'Recruteur' : user.role === 'individual' ? 'Particulier' : 'Étudiant'}
                     </p>
                 </div>
             </div>
@@ -54,7 +54,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                     <div className="space-y-2">
                         <RoleBasedLinks role={user.role} isMobile onLinkClick={onClose} />
                         
-                        <NavLink to="/messages" className="block px-3 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-yellow-700" onClick={onClose}>
+                        {user.role !== 'admin' && <><NavLink to="/messages" className="block px-3 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-yellow-700" onClick={onClose}>
                             <span className="flex items-center gap-3">
                                 <Mail size={20} /> Messagerie
                                 {unreadTotal > 0 && <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full ml-auto">{unreadTotal}</span>}
@@ -62,7 +62,7 @@ const MobileMenu: React.FC<MobileMenuProps> = ({
                         </NavLink>
                         <NavLink to={getSettingsLink()} className="block px-3 py-3 rounded-xl text-base font-medium text-gray-700 hover:bg-gray-50 hover:text-yellow-700" onClick={onClose}>
                             <span className="flex items-center gap-3"><Settings size={20} /> Paramètres</span>
-                        </NavLink>
+                        </NavLink></>}
                         <button 
                             onClick={handleLogout} 
                             className="w-full text-left block px-3 py-3 rounded-xl text-base font-medium text-red-600 hover:bg-red-50"
